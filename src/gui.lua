@@ -1,4 +1,3 @@
-
 local function NewGui(labels: {}): ScreenGui
 	local cmdGui = Instance.new("ScreenGui")
 	cmdGui.Name = "CMDSGUI"
