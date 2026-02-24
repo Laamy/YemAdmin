@@ -13,8 +13,8 @@ local function NewGui(labels: {}): ScreenGui
 	mainButton.Size = UDim2.new(0, 385, 0, 20)
 	mainButton.BackgroundTransparency = 1
 	mainButton.Text = ""
-    mainButton.Draggable = true
 	mainButton.Position = UDim2.new(0.5, -200, 0.5, -200)
+    Instance.new("UIDragDetector", mainButton)
 
 	local mainFrame = Instance.new("Frame", mainButton)
 	mainFrame.ZIndex = 7
@@ -52,7 +52,7 @@ local function NewGui(labels: {}): ScreenGui
 	baseLabel.Position = UDim2.new(0, 0, 0, 20)
 	baseLabel.Text = "Some text here!"
 
-    for i,v in pairs(labels) do
+    for i,v in ipairs(labels) do
         local newLabel = baseLabel:Clone()
         newLabel.RichText = true
         newLabel.Text = v
@@ -308,6 +308,13 @@ AddCommand("blacklist", "Erase a players admin", "<plyr1>", function(calller: Pl
     assert(target, "Player not found")
     
     GetEnv().tempblacklist[target.Name] = {}
+end)
+
+AddCommand("whitelist", "Give someone access (DANGEROUS)", "<plyr1>", function(calller: Player, plyr1: string)
+    local target = getPlyr(plyr1)
+    assert(target, "Player not found")
+    
+    GetEnv().tempwhitelist[target.Name] = {}
 end)
 
 AddCommand("unblacklist", "Unblacklists a player (Username only)", "<plyr1>", function(calller: Player, plyr1: string)
