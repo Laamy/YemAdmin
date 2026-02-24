@@ -1,4 +1,0 @@
-{
-    "luau-lsp.plugin.enabled": true,
-    "luau-lsp.types.robloxSecurityLevel": "LocalUserSecurity"
-}
