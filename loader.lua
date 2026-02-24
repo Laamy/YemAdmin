@@ -156,7 +156,7 @@ local function RankToString(rank: number)
             return i
         end
     end 
-    return "Unknown"
+    return "User"
 end
 
 -- expose just 2 be nice qt3.14's
@@ -197,10 +197,10 @@ type WhitelistData = {
 
 if not GetEnv().tempwhitelist then
     GetEnv().tempwhitelist = {
-        ["SnowClan_8342"] = {
-            rank = Ranks.Developer,
-            COMMENT = "Note that all a higher rank does is give me access to &whitelist so please either do it by hand or dont touch this!"
-        },
+        --["SnowClan_8342"] = {
+        --    rank = Ranks.Developer,
+        --    COMMENT = "Note that all a higher rank does is give me access to &whitelist so please either do it by hand or dont touch this!"
+        --},
         ["qwdssssfsdrfasd"] = {
             rank = Ranks.Special
         },
@@ -331,13 +331,16 @@ local IssueCommand = function(caller: Player, command: string)
 		command = string.sub(command, #prefix + 1)
 	end
 
+    local plrRank = (tempwhitelist[caller.Name] and tempwhitelist[caller.Name].rank.Rank) or 0
+
 	for i,cmd in ipairs(commands) do
 		local commandSplit: {string} = string.split(command, " ")
         local cmdName = table.remove(commandSplit, 1)
         assert(cmdName ~= nil, `cmdName is for some reason nil (It cant be)`)
 
 		if string.lower(cmdName) == cmd.Name then
-            if tempwhitelist[caller.Name].rank.Rank < cmd.MinimumRank then
+            if plrRank < cmd.MinimumRank then
+                Msg(caller, `You must be rank {RankToString(cmd.MinimumRank)}({cmd.MinimumRank}/100) or higher to use this command. You are {RankToString(plrRank)}({plrRank})`)
                 return -- no permission
             end
 			local s,r = pcall(function()
@@ -346,16 +349,19 @@ local IssueCommand = function(caller: Player, command: string)
 			if s ~= true then
 				Msg(caller, r)--was msg anyways
 			end
-		end 
+            return
+		end
 	end
+
+    Msg(caller, `Invalid command\n{command}`)
 end
 
 local onPlayerChatted = function(plyr: Player, msg: string)
     if not isRunning then return end
 
-    if not tempwhitelist[plyr.Name] then
-        return -- verify has a rank first
-    end
+    --if not tempwhitelist[plyr.Name] then
+    --    return -- verify has a rank first
+    --end
 
     local prefix = GetEnv().config.prefix
 	if string.sub(msg, 1, #prefix) == prefix then
@@ -419,8 +425,11 @@ AddCommand(Ranks.Developer.Rank, "shutdown", "Emergency cleanup :)", "<...>", fu
     end
 end)
 
-AddCommand(Ranks.Whitelist.Rank, "cmds", "Display a list of basic commands", "<>", function(caller: Player)
+-- everyone
+AddCommand(0, "cmds", "Display a list of basic commands", "<>", function(caller: Player)
     local output: {string} = {}
+
+    local plrRank = (tempwhitelist[caller.Name] and tempwhitelist[caller.Name].rank.Rank) or 0
 
     local prefix = GetEnv().config.prefix
     for i,cmd in ipairs(commands) do
@@ -428,7 +437,7 @@ AddCommand(Ranks.Whitelist.Rank, "cmds", "Display a list of basic commands", "<>
         local cmdDescr = cmd["Description"]
         local cmdArgs = C(E(cmd["Arguments"]), Color3.fromHex("#919191"))
 
-        if tempwhitelist[caller.Name].rank.Rank < cmd.MinimumRank then
+        if plrRank < cmd.MinimumRank then
             cmdArgs = C(E(cmd["Arguments"]), Color3.fromHex("#3b1212"))
 
             table.insert(output, `{C(prefix, Color3.fromHex("#491717"))}{C(cmdName, Color3.fromHex("#310000"))} {cmdArgs} {C(`- {cmdDescr}`, Color3.fromHex("#310000"))}`)
