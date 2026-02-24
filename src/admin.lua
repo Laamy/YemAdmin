@@ -4,7 +4,6 @@
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
 local ServerScriptService = game:GetService("ServerScriptService")
-local StarterGui = game:GetService("StarterGui")
 
 local function NewGui(labels: {}): ScreenGui
 	local cmdGui = Instance.new("ScreenGui")
@@ -228,6 +227,10 @@ end
 
 local tempwhitelist: {[string]: WhitelistData} = GetEnv().tempwhitelist
 
+local GetRank = function(plyr: Player)
+    return (tempwhitelist[plyr.Name] and tempwhitelist[plyr.Name].rank.Rank) or 0
+end
+
 if GetEnv().eject then
     GetEnv().eject()
 end
@@ -338,7 +341,7 @@ local IssueCommand = function(caller: Player, command: string)
 		command = string.sub(command, #prefix + 1)
 	end
 
-    local plrRank = (tempwhitelist[caller.Name] and tempwhitelist[caller.Name].rank.Rank) or 0
+    local plrRank = GetRank(caller)
 
 	for i,cmd in ipairs(commands) do
 		local commandSplit: {string} = string.split(command, " ")
@@ -382,7 +385,7 @@ local bindChatToPlyr = function(plyr: Player)
     end)
 
     task.wait()
-    local plrRank = (tempwhitelist[plyr.Name] and tempwhitelist[plyr.Name].rank.Rank) or 0
+    local plrRank = GetRank(plyr)
     if plrRank > 0 then
         Msg(plyr, `Welcome back {plyr.Name} you are {RankToString(plrRank)}({plrRank})`)
     end
@@ -415,9 +418,12 @@ table.insert(connections, RunService.Heartbeat:Connect(function(deltaTime: numbe
     end
 end))
 
+local ss,rr = pcall(function(...)
 for i,plyr in pairs(Players:GetPlayers()) do
     bindChatToPlyr(plyr)
 end
+end)
+if not ss then warn (rr) end
 print'chat hooks'
 
 --cmds
@@ -441,7 +447,7 @@ end)
 AddCommand(0, "cmds", "Display a list of basic commands", "<>", function(caller: Player)
     local output: {string} = {}
 
-    local plrRank = (tempwhitelist[caller.Name] and tempwhitelist[caller.Name].rank.Rank) or 0
+    local plrRank = GetRank(caller)
 
     local prefix = GetEnv().config.prefix
     for i,cmd in ipairs(commands) do
