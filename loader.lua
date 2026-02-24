@@ -358,9 +358,8 @@ for i,plyr in pairs(Players:GetPlayers()) do
 end
 
 --cmds
-AddCommand(Ranks.Developer, "enr", "Bans yourself permanmently (DEBUG)", "<plyr1>", function(caller: Player)
-    GetEnv().eject()
-    _G.yem = false
+AddCommand(Ranks.Developer, "enr", "Enter debug mode", "<boolean>", function(caller: Player, value: string)
+    _G.yemdebug = (value:lower() == "true")
 end)
 
 AddCommand(Ranks.Whitelist, "cmds", "Display a list of basic commands", "<>", function(caller: Player)
@@ -455,7 +454,6 @@ AddCommand(Ranks.Whitelist, "perm", "Give someone perm", "<plyr1>", function(cal
     table.insert(_G.permadmins, target.Name)
     table.insert(_G.p299, target.Name)
     table.insert(_G.tempadmins, target.Name)
-    table.insert(GetEnv().fakeperm, target.Name)
 end)
 
 AddCommand(Ranks.Kiddie, "s", "Run some lv2 luau code on server", "<...>", function(caller: Player, ...)
