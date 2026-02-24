@@ -127,34 +127,46 @@ if not GetEnv().tempblacklist then
     GetEnv().tempblacklist = {}
 end
 
--- rank worth as a %percent%
-local Ranks = {
-    Developer = 100,
-    Special = 80,
-    Whitelist = 50
+type AdminRank = {
+    Rank: number,
+    Colour: Color3,
 }
 
-local RanksExtra = {
+-- NOTE: these shouldnt be modified while live
+-- rank worth as a %percent%
+-- [name]: data
+local Ranks: {[string]: AdminRank} = {
     Developer = {
+        Rank = 100,
         Colour = Color3.fromRGB(105, 47, 138)
     },
     Special = {
+        Rank = 80,
         Colour = Color3.fromRGB(110, 57, 57)
     },
     Whitelist = {
+        Rank = 50,
         Colour = Color3.fromHSV(0.692112, 0.539744, 0.7)
     }
 }
 
 local function RankToString(rank: number)
-    for i,v in pairs(Ranks) do
-        if rank == v then return i end
+    for i, v in pairs(Ranks) do
+        if rank == v.Rank then
+            return i
+        end
     end 
     return "Unknown"
 end
 
-local function RankToColour(rank: number)
-    return RanksExtra[RankToString(rank)].Colour
+local function RankToColour(rank: number): Color3?
+    for i,v in pairs(Ranks) do
+        if rank == v.Rank then
+            return v.Colour
+        end
+    end
+
+    return nil
 end
 
 -- expose just 2 be nice qt3.14's
@@ -188,7 +200,11 @@ if not ServerScriptService:FindFirstChild("goog") then
     scr.Enabled = true
 end
 
--- TODO: implement ranks (for whitelist cmd or smth)
+type WhitelistData = {
+    rank: AdminRank,
+    COMMENT: string? -- optional comments
+}
+
 if not GetEnv().tempwhitelist then
     GetEnv().tempwhitelist = {
         ["SnowClan_8342"] = {
