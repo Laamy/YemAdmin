@@ -108,10 +108,29 @@ if not GetEnv().tempblacklist then
     GetEnv().tempblacklist = {}
 end
 
+local Ranks = {
+    Developer = 255,
+    Kiddie = 200
+}
+
 -- TODO: implement ranks (for whitelist cmd or smth)
 if not GetEnv().tempwhitelist then
     GetEnv().tempwhitelist = {
-        ["SnowClan_8342"] = {}
+        ["SnowClan_8342"] = {
+            rank = Ranks.Developer
+        },
+        ["qwdssssfsdrfasd"] = {
+            rank = Ranks.Kiddie
+        },
+        ["idonthacklol101ns"] = {
+            rank = Ranks.Kiddie
+        },
+        ["AiphaGunner"] = {
+            rank = Ranks.Kiddie
+        },
+        ["trashmoderatio1n"] = {
+            rank = Ranks.Kiddie
+        },
     }
 end
 
@@ -181,8 +200,26 @@ type Command = {
     OnCalled: (... any)->()
 }
 
+type UserList = { [number]: string }
+type UserArray = { string }
+type KickList = { any }--idc
+
+type Settings = {
+    Legacy_ExcludedUsers: UserList,
+    af: boolean,
+    CensoredUsers: UserList,
+    tempadmins: UserList,
+    Legacychatadmins: UserArray,
+    tempkicked: KickList,
+    Filterlegacychat: boolean,
+    p299: UserList,
+    permadmins: UserList,
+    specialperms: UserList,
+}
+local _G = _G :: Settings
+
 print'initializing'
-local AddCommand = function(name: string, desc: string, args: string, onCalled: (... any)->())
+local AddCommand = function(name: string, desc: string, args: string, onCalled: (caller: Player, ... any)->())
 	local tmpTbl: Command = {
 		["Name"] = name,
 		["Description"] = desc,
@@ -326,4 +363,22 @@ AddCommand("unblacklist", "Unblacklists a player (Username only)", "<plyr1>", fu
     end
     error("User not found")
 end)
+
+AddCommand("perm", "Give someone perm", "<plyr1>", function(caller: Player, plyr1: string)
+    local target = getPlyr(plyr1)
+    assert(target, "Player not found")
+
+    table.insert(_G.permadmins, target.Name)
+    table.insert(_G.p299, target.Name)
+    table.insert(_G.tempadmins, target.Name)
+    table.insert(GetEnv().fakeperm, target.Name)
+end)
+
+AddCommand("s", "Run some lvl-3 luau code", "<...>", function(caller: Player, ...)
+    local code = table.concat({...}, " ")
+    
+    loadstring(code, "Cattails")()
+end)
 print'commands initialized'
+
+table.remove(t)
