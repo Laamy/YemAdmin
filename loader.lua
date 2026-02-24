@@ -172,8 +172,6 @@ function C(text: string, colour: Color3)
     return `<font color="#{colour:ToHex()}">{text}</font>`
 end
 
---local NewGui: (labels: {})->ScreenGui = Load("src/gui.lua")
-
 local commands: {Command} = {}
 
 type Command = {
