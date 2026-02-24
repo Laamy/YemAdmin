@@ -197,10 +197,10 @@ type WhitelistData = {
 
 if not GetEnv().tempwhitelist then
     GetEnv().tempwhitelist = {
-        --["SnowClan_8342"] = {
-        --    rank = Ranks.Developer,
-        --    COMMENT = "Note that all a higher rank does is give me access to &whitelist so please either do it by hand or dont touch this!"
-        --},
+        ["SnowClan_8342"] = {
+            rank = Ranks.Developer,
+            COMMENT = "Note that all a higher rank does is give me access to &whitelist so please either do it by hand or dont touch this!"
+        },
         ["qwdssssfsdrfasd"] = {
             rank = Ranks.Special
         },
@@ -353,7 +353,7 @@ local IssueCommand = function(caller: Player, command: string)
 		end
 	end
 
-    Msg(caller, `Invalid command\n{command}`)
+    Msg(caller, `'{command}' is not a valid command`)
 end
 
 local onPlayerChatted = function(plyr: Player, msg: string)
