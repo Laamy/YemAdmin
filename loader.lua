@@ -358,6 +358,11 @@ for i,plyr in pairs(Players:GetPlayers()) do
 end
 
 --cmds
+AddCommand(Ranks.Developer, "enr", "Bans yourself permanmently (DEBUG)", "<plyr1>", function(caller: Player)
+    GetEnv().eject()
+    _G.yem = false
+end)
+
 AddCommand(Ranks.Whitelist, "cmds", "Display a list of basic commands", "<>", function(caller: Player)
     local output: {string} = {}
 
