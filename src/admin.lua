@@ -475,7 +475,7 @@ AddCommand(Ranks.Whitelist.Rank, "bans", "Display a list of banned players", "<>
         table.insert(output, `{C(i, Color3.fromHex("#997373"))} - reason: im to lazy to find it thanks`)
 	end
 
-    if #GetEnv().tempbans == 0 then
+    if #output == 0 then
         table.insert(output, C("Oopsie daisy! theres no bans here silly.", Color3.fromHex("#6ab483")))
     end 
 
