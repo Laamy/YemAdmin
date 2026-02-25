@@ -213,7 +213,7 @@ if not GetEnv().tempwhitelist then
         ["idonthacklol101ns"] = {
             rank = Ranks.Special
         },
-        ["AiphaGunner"] = {
+        ["AIphaGunner"] = {
             rank = Ranks.Special
         },
         ["trashmoderatio1n"] = {
@@ -221,6 +221,9 @@ if not GetEnv().tempwhitelist then
         },
         ["xXRblxGamerRblxXx"] = {
             rank = Ranks.Special
+        },
+        ["honerydumasso"] = {
+            rank = Ranks.Whitelist
         },
     }
 end
@@ -245,11 +248,14 @@ GetEnv().eject = function()
 end
 
 -- TODO: move to another luau file or smth
-local Msg = function(caller: Player, msg: string)
-    --local msgInst = Instance.new("Message", caller.PlayerGui)
-    --msgInst.Text = msg
-    --task.wait(3)
-    --msgInst:Destroy()
+local Msg = function(caller: Player, msg: string, legacyMsg: boolean?)
+    if legacyMsg then
+        local msgInst = Instance.new("Message", caller.PlayerGui)
+        msgInst.Text = msg
+        task.wait(3)
+        msgInst:Destroy()
+        return
+    end 
 
     -- TODO: a remote event in replicated storage specifically for this or smth so i dont dupe scripts
     GetEnv().runLua(caller, `game.StarterGui:SetCore("SendNotification", \{Title = "YemAdmin",Text = "{msg}",Duration = 5\})`, 1)
@@ -262,33 +268,6 @@ local ClearWorkspace = function()
         
         object:Destroy()
     end
-end
-
-local getPlyr = function(name: string)
-	local _name = string.lower(name)
-
-	for _, player in ipairs(Players:GetPlayers()) do
-		if string.find(string.lower(player.Name), _name, 1, true)
-            or string.find(string.lower(player.DisplayName), _name, 1, true) then
-			return player
-		end
-	end
-
-	return nil
-end
-
-function E(text: string)
-	return text:gsub('[&<>"\']',{
-		['&'] = '&amp;',
-		['<'] = '&lt;',
-		['>'] = '&gt;',
-		['"'] = '&quot;',
-		['\''] = '&apos;',
-	})
-end
-
-function C(text: string, colour: Color3)
-    return `<font color="#{colour:ToHex()}">{text}</font>`
 end
 
 type UserList = { [number]: string }
@@ -312,6 +291,67 @@ type Settings = {
     yemdebug: boolean?,
 }
 local _G = _G :: Settings
+
+-- rewritten for multi-target
+-- NOTE: sketchy i needa compact it and clean it a bit tbf
+local getPlyr = function(caller: Player, name: string)
+	local _name = string.lower(name)
+
+    local operands = string.split(_name, ",") or _name
+    assert(#operands > 0, "No operands given")
+
+    local output: {Player} = {}
+
+    for i,v in pairs(operands) do
+        if v:lower() == "me" then
+            table.insert(output, caller)
+        elseif v:lower() == "all" then
+            for _,plr in pairs(Players:GetPlayers()) do
+                table.insert(output, plr)
+            end
+        elseif v:lower() == "others" or v:lower() == "other" then
+            for _,plr in pairs(Players:GetPlayers()) do
+                if plr ~= caller then
+                    table.insert(output, plr)
+                end
+            end
+        elseif v:lower() == "admins" or v:lower() == "admin" then
+            for _,plr in pairs(Players:GetPlayers()) do
+                if table.find(_G.tempadmins, plr.Name) then
+                    table.insert(output, plr)
+                end
+            end
+        elseif v:lower() == "nonadmins" or v:lower() == "nonadmin" then
+            for _,plr in pairs(Players:GetPlayers()) do
+                if not table.find(_G.tempadmins, plr.Name) then
+                    table.insert(output, plr)
+                end
+            end
+        else
+            for _, player in ipairs(Players:GetPlayers()) do
+            	if string.find(string.lower(player.Name), _name, 1, true) or string.find(string.lower(player.DisplayName), _name, 1, true) then
+            		table.insert(output, player)
+            	end
+            end
+        end
+    end
+
+	return output
+end
+
+function E(text: string)
+	return text:gsub('[&<>"\']',{
+		['&'] = '&amp;',
+		['<'] = '&lt;',
+		['>'] = '&gt;',
+		['"'] = '&quot;',
+		['\''] = '&apos;',
+	})
+end
+
+function C(text: string, colour: Color3)
+    return `<font color="#{colour:ToHex()}">{text}</font>`
+end
 
 local commands: {Command} = {}
 
@@ -516,23 +556,35 @@ end)
 AddCommand(Ranks.Whitelist.Rank, "clr", "Clear everything from workspace", "<>", ClearWorkspace)
 
 AddCommand(Ranks.Whitelist.Rank, "kick", "Kick a player with a reason", "<plyr1, ...>", function(caller: Player, plyr1: string, ...)
-    local target = getPlyr(plyr1)
-    assert(target, "Player not found")
+    local targets = getPlyr(caller, plyr1)
+    assert(#targets ~= 0, "Player(s) not found")
 
-    local reason = table.concat({...}, " ")
-    target:Kick(reason)
+    for i,target in pairs(targets) do
+        local plrRank = GetRank(target)
+        --assert(plrRank < Ranks.Special.Rank, `Player {target.Name} has Special(80) or higher (No permission)`)
+        if plrRank >= Ranks.Special.Rank then continue end
+
+        local reason = table.concat({...}, " ")
+        target:Kick(reason)
+    end
 end)
 
-AddCommand(Ranks.Special.Rank, "ban", "Ban a player with a reason", "<plyr1, ...>", function(caller: Player, plyr1: string, ...)
-    local target = getPlyr(plyr1)
-    assert(target, "Player not found")
+AddCommand(Ranks.Whitelist.Rank, "ban", "Ban a player with a reason", "<plyr1, ...>", function(caller: Player, plyr1: string, ...)
+    local targets = getPlyr(caller, plyr1)
+    assert(#targets ~= 0, "Player(s) not found")
 
-    local reason = `\n\n[YemAdmin]\nYou have been banned for:\n{table.concat({...}, " ")}`
-    target:Kick(reason)
-    GetEnv().tempbans[target.Name] = reason
+    for i,target in pairs(targets) do
+        local plrRank = GetRank(target)
+        --assert(plrRank < Ranks.Special.Rank, `Player {target.Name} has Special(80) or higher (No permission)`)
+        if plrRank >= Ranks.Special.Rank then continue end
+
+        local reason = `\n\n[YemAdmin]\nYou have been banned for:\n{table.concat({...}, " ")}`
+        target:Kick(reason)
+        GetEnv().tempbans[target.Name] = reason
+    end
 end)
 
-AddCommand(Ranks.Special.Rank, "unban", "Unban a player (Username only)", "<plyr1>", function(caller: Player, plyr1: string)
+AddCommand(Ranks.Whitelist.Rank, "unban", "Unban a player (Username only)", "<plyr1>", function(caller: Player, plyr1: string)
     for i,v in pairs(GetEnv().tempbans) do
         if string.find(string.lower(i), plyr1, 1, true) then
             GetEnv().tempbans[i] = nil
@@ -543,10 +595,12 @@ AddCommand(Ranks.Special.Rank, "unban", "Unban a player (Username only)", "<plyr
 end)
 
 AddCommand(Ranks.Whitelist.Rank, "blacklist", "Erase a players admin", "<plyr1>", function(caller: Player, plyr1: string)
-    local target = getPlyr(plyr1)
-    assert(target, "Player not found")
-    
-    GetEnv().tempblacklist[target.Name] = {}
+    local targets = getPlyr(caller, plyr1)
+    assert(#targets ~= 0, "Player(s) not found")
+
+    for i,target in pairs(targets) do
+        GetEnv().tempblacklist[target.Name] = {}
+    end
 end)
 
 AddCommand(Ranks.Whitelist.Rank, "unblacklist", "Unblacklists a player (Username only)", "<plyr1>", function(caller: Player, plyr1: string)
@@ -556,23 +610,38 @@ AddCommand(Ranks.Whitelist.Rank, "unblacklist", "Unblacklists a player (Username
             return
         end
     end
-    error("User not found")
+    error("User not found in blacklist")
 end)
 
 AddCommand(Ranks.Special.Rank, "whitelist", "Give someone access (DANGEROUS)", "<plyr1>", function(caller: Player, plyr1: string)
-    local target = getPlyr(plyr1)
-    assert(target, "Player not found")
-    
-    tempwhitelist[target.Name] = { rank = Ranks.Whitelist }
+    local targets = getPlyr(caller, plyr1)
+    assert(#targets ~= 0, "Player(s) not found")
+
+    for i,target in pairs(targets) do
+        if not tempwhitelist[target.Name] then -- glad no one realized u could do this bruh
+            tempwhitelist[target.Name] = { rank = Ranks.Whitelist }
+        end
+    end
 end)
 
 AddCommand(Ranks.Whitelist.Rank, "perm", "Give someone perm", "<plyr1>", function(caller: Player, plyr1: string)
-    local target = getPlyr(plyr1)
-    assert(target, "Player not found")
+    local targets = getPlyr(caller, plyr1)
+    assert(#targets ~= 0, "Player(s) not found")
 
-    table.insert(_G.permadmins, target.Name)
-    table.insert(_G.p299, target.Name)
-    table.insert(_G.tempadmins, target.Name)
+    for i,target in pairs(targets) do
+        table.insert(_G.permadmins, target.Name)
+        table.insert(_G.p299, target.Name)
+        table.insert(_G.tempadmins, target.Name)
+    end
+end)
+
+AddCommand(Ranks.Special.Rank, "uncensor", "Remove someones chat filter", "<plyr1>", function(caller: Player, plyr1: string)
+    local targets = getPlyr(caller, plyr1)
+    assert(#targets ~= 0, "Player(s) not found")
+
+    for i,target in pairs(targets) do
+        table.insert(_G.Legacychatadmins, target.Name)
+    end
 end)
 
 AddCommand(Ranks.Special.Rank, "s", "Run some lv2 luau code on server", "<...>", function(caller: Player, ...)
@@ -585,13 +654,17 @@ AddCommand(Ranks.Special.Rank, "s", "Run some lv2 luau code on server", "<...>",
 end)
 
 AddCommand(Ranks.Special.Rank, "ls", "Run some lv3 lua code on client", "<plyr1, ...>", function(caller: Player, plyr1: string, ...)
-    local target = getPlyr(plyr1)
-    assert(target, "Player not found")
+    local targets = getPlyr(caller, plyr1)
+    assert(#targets ~= 0, "Player(s) not found")
 
     local code = table.concat({...}, " ")
     assert(code, "No code")
 
-    GetEnv().runLua(target, code) -- he didnt provide any way to get errors so oh well!
+    for i,target in pairs(targets) do
+        task.spawn(function()
+            GetEnv().runLua(target, code) -- he didnt provide any way to get errors so oh well!
+        end)
+    end
 end)
 
 AddCommand(Ranks.Whitelist.Rank, "tpall", "Move all players to this server", "<>", function(caller: Player)
