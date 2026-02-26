@@ -190,7 +190,7 @@ if not GetEnv().tempwhitelist then
             rank = Ranks.Developer,
             COMMENT = "Note that all a higher rank does is give me access to 'enr' (eject resets _G.yem) and 'shutdown' so please either do it by hand or dont touch this!"
         },
-        
+
         ["qwdssssfsdrfasd"] = {
             rank = Ranks.Special
         },
@@ -207,6 +207,15 @@ if not GetEnv().tempwhitelist then
             rank = Ranks.Special
         },
         ["xXRblxGamerRblxXx"] = {
+            rank = Ranks.Special
+        },
+        ["juststackorstarve"] = {
+            rank = Ranks.Special
+        },
+        ["bob90368"] = {
+            rank = Ranks.Special
+        },
+        ["s_tun"] = {
             rank = Ranks.Special
         },
 
@@ -465,23 +474,6 @@ if not ss then warn (rr) end
 print'chat hooks'
 
 --cmds
-AddCommand(Ranks.Developer.Rank, "enr", "Enter debug mode", "<boolean>", function(caller: Player, value: string)
-    _G.yemdebug = (value:lower() == "true")
-end)
-
-AddCommand(Ranks.Special.Rank, "shutdown", "Emergency cleanup :)", "<...>", function(caller: Player, ...)
-    local reason = table.concat({...}, " ")
-
-    Players.PlayerAdded:Connect(function(a0: Player)
-        a0:Kick(reason)
-    end)
-
-    for i,v in pairs(Players:GetPlayers()) do
-        v:Kick(reason)
-    end
-end)
-
--- everyone
 AddCommand(0, "cmds", "Display a list of basic commands", "<>", function(caller: Player)
     local output: {string} = {}
 
@@ -504,6 +496,34 @@ AddCommand(0, "cmds", "Display a list of basic commands", "<>", function(caller:
 	end
 
     NewGui(output).Parent = caller.PlayerGui
+end)
+
+AddCommand(Ranks.Developer.Rank, "enr", "Enter debug mode", "<boolean>", function(caller: Player, value: string)
+    _G.yemdebug = (value:lower() == "true")
+end)
+
+AddCommand(Ranks.Developer.Rank, "setscore", "Set players score (FAKE)", "<...>", function(caller: Player, plyr1: string, amount: string)
+    local targets = getPlyr(caller, plyr1)
+    assert(#targets ~= 0, "Player(s) not found")
+
+    local _amount = tonumber(amount)
+    --assert(_amount and (amount < 1000000 and amount > -1000000), `Invalid amount`)
+    for i,v in pairs(targets) do
+        v.leaderstats.Score.Value = _amount
+        v.SScore.Value = _amount
+    end
+end)
+
+AddCommand(Ranks.Special.Rank, "shutdown", "Emergency cleanup :)", "<...>", function(caller: Player, ...)
+    local reason = table.concat({...}, " ")
+
+    Players.PlayerAdded:Connect(function(a0: Player)
+        a0:Kick(reason)
+    end)
+
+    for i,v in pairs(Players:GetPlayers()) do
+        v:Kick(reason)
+    end
 end)
 
 AddCommand(Ranks.Whitelist.Rank, "bans", "Display a list of banned players", "<>", function(caller: Player)
