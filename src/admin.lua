@@ -15,31 +15,26 @@ local function NewGui(labels: {}): ScreenGui
 	mainButton.BackgroundTransparency = 1
 	mainButton.Text = ""
 	mainButton.Position = UDim2.new(0.5, -200, 0.5, -200)
-    Instance.new("UIDragDetector", mainButton)
+	Instance.new("UIDragDetector", mainButton)
 
 	local mainFrame = Instance.new("Frame", mainButton)
 	mainFrame.ZIndex = 7
 	mainFrame.Style = Enum.FrameStyle.RobloxRound
-	mainFrame.ClipsDescendants = true
 	mainFrame.Size = UDim2.new(0, 400, 0, 400)
 
-	local innerFrame = Instance.new("Frame", mainFrame)
-	innerFrame.ZIndex = 8
-	innerFrame.Position = UDim2.new(0, 0, 0, -9)
+	local scrollFrame = Instance.new("ScrollingFrame", mainFrame)
+	scrollFrame.Size = UDim2.new(1, 0, 1, -20)
+	scrollFrame.Position = UDim2.new(0, 0, 0, 20)
+	scrollFrame.BackgroundTransparency = 1
+	scrollFrame.ScrollBarThickness = 7
+	scrollFrame.CanvasSize = UDim2.new(0, 0, 0, 0)
 
-	local logLabel = Instance.new("TextLabel", innerFrame)
-	logLabel.TextStrokeTransparency = 0.8
-	logLabel.ZIndex = 8
-	logLabel.TextXAlignment = Enum.TextXAlignment.Left
-	logLabel.TextYAlignment = Enum.TextYAlignment.Top
-	logLabel.TextSize = 18
-	logLabel.FontFace = Font.new("rbxasset://fonts/families/Arial.json", Enum.FontWeight.Regular, Enum.FontStyle.Normal)
-	logLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
-	logLabel.BackgroundTransparency = 1
-	logLabel.Text = ""
+	local innerFrame = Instance.new("Frame", scrollFrame)
+	innerFrame.Size = UDim2.new(1, 0, 0, 0)
+	innerFrame.Position = UDim2.new(0, 0, 0, 0)
+	innerFrame.Transparency = 1
 
-	local baseLabel = Instance.new("TextLabel", innerFrame)
-	baseLabel.TextStrokeTransparency = 0.8
+	local baseLabel = Instance.new("TextLabel")
 	baseLabel.ZIndex = 8
 	baseLabel.TextXAlignment = Enum.TextXAlignment.Left
 	baseLabel.TextYAlignment = Enum.TextYAlignment.Top
@@ -48,19 +43,18 @@ local function NewGui(labels: {}): ScreenGui
 	baseLabel.TextColor3 = Color3.fromRGB(200, 200, 200)
 	baseLabel.BackgroundTransparency = 1
 	baseLabel.RichText = true
-	baseLabel.Visible = false
-	baseLabel.Name = "BaseLabel"
-	baseLabel.Position = UDim2.new(0, 0, 0, 20)
-	baseLabel.Text = "Some text here!"
 
-    for i,v in ipairs(labels) do
-        local newLabel = baseLabel:Clone()
-        newLabel.RichText = true
-        newLabel.Text = v
-	    newLabel.Position = UDim2.new(0, 0, 0, i*20)
-        newLabel.Visible = true
-        newLabel.Parent = innerFrame
-    end
+	for i, v in ipairs(labels) do
+		local newLabel = baseLabel:Clone()
+		newLabel.Text = v
+		newLabel.Position = UDim2.new(0, 0, 0, (i - 1) * 20)
+		newLabel.Size = UDim2.new(1, 0, 0, 20)
+		newLabel.Visible = true
+		newLabel.Parent = innerFrame
+	end
+
+	innerFrame.Size = UDim2.new(1, 0, 0, #labels * 20)
+	scrollFrame.CanvasSize = UDim2.new(0, 0, 0, innerFrame.Size.Y.Offset)
 
 	local closeButton = Instance.new("TextButton", mainFrame)
 	closeButton.TextSize = 18
@@ -71,17 +65,9 @@ local function NewGui(labels: {}): ScreenGui
 	closeButton.Text = "X"
 	closeButton.Style = Enum.ButtonStyle.RobloxButtonDefault
 	closeButton.Position = UDim2.new(1, -15, 0, -5)
-    closeButton.MouseButton1Click:Connect(function(...)
-        cmdGui:Destroy()
-    end)
-
-	local imageButton = Instance.new("ImageButton", mainFrame)
-	imageButton.ZIndex = 9
-	imageButton.Image = "http://www.roblox.com/asset/?id=108326725"
-	imageButton.Size = UDim2.new(0, 25, 0, 25)
-	imageButton.BackgroundTransparency = 1
-	imageButton.Visible = false
-	imageButton.Position = UDim2.new(1, -20, 1, -20)
+	closeButton.MouseButton1Click:Connect(function(...)
+		cmdGui:Destroy()
+	end)
 
 	return cmdGui
 end
@@ -204,6 +190,7 @@ if not GetEnv().tempwhitelist then
             rank = Ranks.Developer,
             COMMENT = "Note that all a higher rank does is give me access to 'enr' (eject resets _G.yem) and 'shutdown' so please either do it by hand or dont touch this!"
         },
+        
         ["qwdssssfsdrfasd"] = {
             rank = Ranks.Special
         },
@@ -222,7 +209,8 @@ if not GetEnv().tempwhitelist then
         ["xXRblxGamerRblxXx"] = {
             rank = Ranks.Special
         },
-        ["honerydumasso"] = {
+
+        ["BionicGamer112203"] = {
             rank = Ranks.Whitelist
         },
     }
@@ -268,6 +256,16 @@ local ClearWorkspace = function()
         
         object:Destroy()
     end
+end
+
+local RemoveItem = function(tbl: {any}, item: any) 
+    for i,v in ipairs(tbl) do
+        if v == item then
+            table.remove(tbl, i)
+            --break
+        end 
+    end
+    return tbl
 end
 
 type UserList = { [number]: string }
@@ -471,7 +469,7 @@ AddCommand(Ranks.Developer.Rank, "enr", "Enter debug mode", "<boolean>", functio
     _G.yemdebug = (value:lower() == "true")
 end)
 
-AddCommand(Ranks.Developer.Rank, "shutdown", "Emergency cleanup :)", "<...>", function(caller: Player, ...)
+AddCommand(Ranks.Special.Rank, "shutdown", "Emergency cleanup :)", "<...>", function(caller: Player, ...)
     local reason = table.concat({...}, " ")
 
     Players.PlayerAdded:Connect(function(a0: Player)
@@ -584,7 +582,7 @@ AddCommand(Ranks.Whitelist.Rank, "ban", "Ban a player with a reason", "<plyr1, .
     end
 end)
 
-AddCommand(Ranks.Whitelist.Rank, "unban", "Unban a player (Username only)", "<plyr1>", function(caller: Player, plyr1: string)
+AddCommand(Ranks.Whitelist.Rank, "unban", "Unban a player", "<plyr1>", function(caller: Player, plyr1: string)
     for i,v in pairs(GetEnv().tempbans) do
         if string.find(string.lower(i), plyr1, 1, true) then
             GetEnv().tempbans[i] = nil
@@ -592,6 +590,17 @@ AddCommand(Ranks.Whitelist.Rank, "unban", "Unban a player (Username only)", "<pl
         end
     end
     error("User not found")
+end)
+
+AddCommand(Ranks.Special.Rank, "whitelist", "Give someone access", "<plyr1>", function(caller: Player, plyr1: string)
+    local targets = getPlyr(caller, plyr1)
+    assert(#targets ~= 0, "Player(s) not found")
+
+    for i,target in pairs(targets) do
+        if not tempwhitelist[target.Name] then -- glad no one realized u could do this bruh
+            tempwhitelist[target.Name] = { rank = Ranks.Whitelist }
+        end
+    end
 end)
 
 AddCommand(Ranks.Whitelist.Rank, "blacklist", "Erase a players admin", "<plyr1>", function(caller: Player, plyr1: string)
@@ -603,7 +612,7 @@ AddCommand(Ranks.Whitelist.Rank, "blacklist", "Erase a players admin", "<plyr1>"
     end
 end)
 
-AddCommand(Ranks.Whitelist.Rank, "unblacklist", "Unblacklists a player (Username only)", "<plyr1>", function(caller: Player, plyr1: string)
+AddCommand(Ranks.Whitelist.Rank, "unblacklist", "Unblacklists a player", "<plyr1>", function(caller: Player, plyr1: string)
     for i,v in pairs(GetEnv().tempblacklist) do
         if string.find(string.lower(i), plyr1, 1, true) then
             GetEnv().tempblacklist[i] = nil
@@ -611,17 +620,6 @@ AddCommand(Ranks.Whitelist.Rank, "unblacklist", "Unblacklists a player (Username
         end
     end
     error("User not found in blacklist")
-end)
-
-AddCommand(Ranks.Special.Rank, "whitelist", "Give someone access (DANGEROUS)", "<plyr1>", function(caller: Player, plyr1: string)
-    local targets = getPlyr(caller, plyr1)
-    assert(#targets ~= 0, "Player(s) not found")
-
-    for i,target in pairs(targets) do
-        if not tempwhitelist[target.Name] then -- glad no one realized u could do this bruh
-            tempwhitelist[target.Name] = { rank = Ranks.Whitelist }
-        end
-    end
 end)
 
 AddCommand(Ranks.Whitelist.Rank, "perm", "Give someone perm", "<plyr1>", function(caller: Player, plyr1: string)
@@ -632,6 +630,26 @@ AddCommand(Ranks.Whitelist.Rank, "perm", "Give someone perm", "<plyr1>", functio
         table.insert(_G.permadmins, target.Name)
         table.insert(_G.p299, target.Name)
         table.insert(_G.tempadmins, target.Name)
+    end
+end)
+
+AddCommand(Ranks.Whitelist.Rank, "unperm", "Erase someones perm", "<plyr1>", function(caller: Player, plyr1: string)
+    local targets = getPlyr(caller, plyr1)
+    assert(#targets ~= 0, "Player(s) not found")
+
+    for i,target in pairs(targets) do
+        _G.permadmins = RemoveItem(_G.permadmins, target.Name)
+        _G.p299 = RemoveItem(_G.p299, target.Name)
+        _G.tempadmins = RemoveItem(_G.tempadmins, target.Name)
+    end
+end)
+
+AddCommand(Ranks.Special.Rank, "censor", "Restore someones chat filter", "<plyr1>", function(caller: Player, plyr1: string)
+    local targets = getPlyr(caller, plyr1)
+    assert(#targets ~= 0, "Player(s) not found")
+
+    for i,target in pairs(targets) do
+        _G.Legacychatadmins = RemoveItem(_G.Legacychatadmins, target.Name)
     end
 end)
 
