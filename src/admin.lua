@@ -80,6 +80,8 @@ if _G.yemdebug and _G.yem then
     _G.yem = false -- wipe
 end
 
+-- TODO: commandbar
+
 -- cuz some people kept mapping it and i decided to be unfunny
 if not _G.yem then
     local yemEnv = {}
