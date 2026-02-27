@@ -525,7 +525,7 @@ AddCommand(Ranks.Developer.Rank, "setscore", "Set players score (FAKE)", "<...>"
 
     local _amount = tonumber(amount)
     --assert(_amount and (amount < 1000000 and amount > -1000000), `Invalid amount`)
-    for i,v in pairs(targets) do
+    for i,v: any in pairs(targets) do -- cast to any to silence errors
         v.leaderstats.Score.Value = _amount
         v.SScore.Value = _amount
     end
@@ -789,6 +789,7 @@ AddCommand(Ranks.Whitelist.Rank, "ungearban", "Enable someones backpack", "<plyr
     end
 end)
 
+-- TODO: legacy chat nicknames
 AddCommand(Ranks.Whitelist.Rank, "nick", "Nick a player " .. C("[F]", Color3.fromRGB(88, 34, 101)), "<plyr1, ...>", function(caller: Player, plyr1: string, ...)
     local targets = getPlyr(caller, plyr1)
     assert(#targets ~= 0, "Player(s) not found")
