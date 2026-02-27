@@ -831,4 +831,22 @@ AddCommand(Ranks.Whitelist.Rank, "unnick", "Unnick a player", "<plyr1>", functio
     end
 end)
 
+AddCommand(Ranks.Whitelist.Rank, "speak", "Speak as player" .. C("[F]", Color3.fromRGB(88, 34, 101)), "<plyr1, ...>", function(caller: Player, plyr1: string, ...)
+    local targets = getPlyr(caller, plyr1)
+    assert(#targets ~= 0, "Player(s) not found")
+
+    local spoofText = F(table.concat({...}, " "))
+    assert(spoofText and #spoofText > 1, "Text length invalid (2 or more charcaters required)")
+
+    for i,target in pairs(targets) do
+        local plrRank = GetRank(target)
+        --assert(plrRank < Ranks.Special.Rank, `Player {target.Name} has Special(80) or higher (No permission)`)
+        if plrRank >= Ranks.Special.Rank then continue end
+
+        pcall(function(...)
+            GetEnv().runLua(target, `game.ReplicatedStorage.DefaultChatSystemChatEvents.SayMessageRequest:FireServer("{spoofText}", "All")`)
+        end)
+    end
+end)
+
 print'commands initialized'
