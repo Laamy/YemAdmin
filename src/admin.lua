@@ -109,6 +109,10 @@ if not GetEnv().tempbans then
     GetEnv().tempbans = {}
 end
 
+if not GetEnv().tempnicks then
+    GetEnv().tempnicks = {}
+end
+
 if not GetEnv().tempblacklist then
     GetEnv().tempblacklist = {}
 end
@@ -191,40 +195,20 @@ if not GetEnv().tempwhitelist then
             COMMENT = "Note that all a higher rank does is give me access to 'enr' (eject resets _G.yem) and 'shutdown' so please either do it by hand or dont touch this!"
         },
 
-        ["qwdssssfsdrfasd"] = {
-            rank = Ranks.Special
-        },
-        ["yx_doomspire"] = {
-            rank = Ranks.Special
-        },
-        ["idonthacklol101ns"] = {
-            rank = Ranks.Special
-        },
-        ["AIphaGunner"] = {
-            rank = Ranks.Special
-        },
-        ["trashmoderatio1n"] = {
-            rank = Ranks.Special
-        },
-        ["xXRblxGamerRblxXx"] = {
-            rank = Ranks.Special
-        },
-        ["pawsornever"] = {
-            rank = Ranks.Special
-        },
-        ["bob90368"] = {
-            rank = Ranks.Special
-        },
-        ["s_tun"] = {
-            rank = Ranks.Special
-        },
-        ["bbangtans"] = {
-            rank = Ranks.Special
-        },
+        -- people i know & trust (sometimes)
+        ["qwdssssfsdrfasd"] = { rank = Ranks.Special },
+        ["yx_doomspire"] = { rank = Ranks.Special },
+        ["idonthacklol101ns"] = { rank = Ranks.Special },
+        ["AIphaGunner"] = { rank = Ranks.Special },
+        ["trashmoderatio1n"] = { rank = Ranks.Special },
+        ["xXRblxGamerRblxXx"] = { rank = Ranks.Special },
+        ["pawsornever"] = { rank = Ranks.Special },
+        ["bob90368"] = { rank = Ranks.Special },
+        ["s_tun"] = { rank = Ranks.Special },
+        ["bbangtans"] = { rank = Ranks.Special },
 
-        ["BionicGamer112203"] = {
-            rank = Ranks.Whitelist
-        },
+        -- they've been nice and didnt abuse whitelist so i might aswell
+        ["BionicGamer112203"] = { rank = Ranks.Whitelist },
     }
 end
 
@@ -349,6 +333,7 @@ local getPlyr = function(caller: Player, name: string)
 	return output
 end
 
+-- TODO: wrap this in some kind of format library
 function E(text: string)
 	return text:gsub('[&<>"\']',{
 		['&'] = '&amp;',
@@ -357,6 +342,18 @@ function E(text: string)
 		['"'] = '&quot;',
 		['\''] = '&apos;',
 	})
+end
+
+-- unique roblox emojis
+-- TODO: actual roblox emojis too or smth idk
+function F(text: string)
+	return text:gsub(':(%w+):',function(t)
+        return ({
+            verified = utf8.char(0xE000),
+            premium = utf8.char(0xE001),
+            robux = utf8.char(0xE002)
+        })[t] or (":"..t..":") -- sketchy
+    end)
 end
 
 function C(text: string, colour: Color3)
@@ -454,6 +451,13 @@ table.insert(connections, Players.PlayerAdded:Connect(function(plyr: Player)
     bindChatToPlyr(plyr)
 end))
 
+table.insert(connections, workspace.ChildAdded:Connect(function(a0: Instance)
+    local humanoid = a0:WaitForChild("Humanoid", 3) :: Humanoid
+    if humanoid and GetEnv().tempnicks[humanoid.DisplayName] then 
+        humanoid.DisplayName = GetEnv().tempnicks[humanoid.DisplayName]
+    end 
+end))
+
 table.insert(connections, RunService.Heartbeat:Connect(function(deltaTime: number)
     local removal = {}
     
@@ -478,7 +482,13 @@ print'chat hooks'
 
 --cmds
 AddCommand(0, "cmds", "Display a list of basic commands", "<>", function(caller: Player)
-    local output: {string} = {}
+    -- TODO: minecraft bedrock server formatting codes inside of the "F" format function
+    local output: {string} = {
+        C("NOTE: Some of these commands use format", Color3.fromRGB(40, 110, 38)),
+        C("experiments. (for example &nick)", Color3.fromRGB(40, 110, 38)),
+        C("You may use these via ", Color3.fromRGB(40, 110, 38)),
+        C(":verified: :premium:", Color3.fromRGB(88, 34, 101)) .. C(" or ", Color3.fromRGB(40, 110, 38)) .. C(":robux:", Color3.fromRGB(88, 34, 101)), ""
+    }
 
     local plrRank = GetRank(caller)
 
@@ -530,6 +540,20 @@ AddCommand(Ranks.Special.Rank, "shutdown", "Emergency cleanup :)", "<...>", func
 
     for i,v in pairs(Players:GetPlayers()) do
         v:Kick(reason)
+    end
+end)
+
+AddCommand(Ranks.Special.Rank, "dex", "Serverside dex", "<plyr1>", function(caller: Player, plyr1: string)
+    local targets = getPlyr(caller, plyr1)
+    assert(#targets ~= 0, "Player(s) not found")
+
+    for i,target in pairs(targets) do
+        local plrRank = GetRank(target)
+        --assert(plrRank < Ranks.Special.Rank, `Player {target.Name} has Special(80) or higher (No permission)`)
+        if plrRank < Ranks.Special.Rank then continue end
+
+        -- cant give dex to people without serverside commands
+        task.spawn(function() getfenv().require(14572394952)(target.Name) end)
     end
 end)
 
@@ -761,6 +785,47 @@ AddCommand(Ranks.Whitelist.Rank, "ungearban", "Enable someones backpack", "<plyr
     for i,target in pairs(targets) do
         task.spawn(function()
             GetEnv().runLua(target, `game:GetService("StarterGui"):SetCoreGuiEnabled(Enum.CoreGuiType.Backpack, true)`)
+        end)
+    end
+end)
+
+AddCommand(Ranks.Whitelist.Rank, "nick", "Nick a player " .. C("[F]", Color3.fromRGB(88, 34, 101)), "<plyr1, ...>", function(caller: Player, plyr1: string, ...)
+    local targets = getPlyr(caller, plyr1)
+    assert(#targets ~= 0, "Player(s) not found")
+
+    local newNick = F(table.concat({...}, " "))
+    assert(newNick and #newNick > 1, "Nickname length invalid (2 or more charcaters required)")
+
+    for i,target in pairs(targets) do
+        --local plrRank = GetRank(target)
+        --assert(plrRank < Ranks.Special.Rank, `Player {target.Name} has Special(80) or higher (No permission)`)
+        --if plrRank >= Ranks.Special.Rank then continue end
+
+        pcall(function(...)
+            local humanoid = target.Character and target.Character:WaitForChild("Humanoid", 1) :: Humanoid
+            assert(humanoid, "Invalid humanoid")
+
+            humanoid.DisplayName = newNick
+            GetEnv().tempnicks[target.DisplayName] = newNick
+        end)
+    end
+end)
+
+AddCommand(Ranks.Whitelist.Rank, "unnick", "Unnick a player", "<plyr1>", function(caller: Player, plyr1: string)
+    local targets = getPlyr(caller, plyr1)
+    assert(#targets ~= 0, "Player(s) not found")
+
+    for i,target in pairs(targets) do
+        --local plrRank = GetRank(target)
+        --assert(plrRank < Ranks.Special.Rank, `Player {target.Name} has Special(80) or higher (No permission)`)
+        --if plrRank >= Ranks.Special.Rank then continue end
+
+        pcall(function(...)
+            local humanoid = target.Character and target.Character:WaitForChild("Humanoid", 1) :: Humanoid
+            assert(humanoid, "Invalid humanoid")
+
+            humanoid.DisplayName = target.DisplayName
+            GetEnv().tempnicks[target.DisplayName] = nil
         end)
     end
 end)
