@@ -5,22 +5,22 @@ local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
 local ServerScriptService = game:GetService("ServerScriptService")
 
-local function NewGui(labels: {}): ScreenGui
+type GuiOptions = {
+    SearchBar: boolean?,
+}
+
+local function NewGui(labels: {}, options: GuiOptions?): ScreenGui
+    -- had to shadow so error doesnt appear
+    local options: GuiOptions = options or {}
+
 	local cmdGui = Instance.new("ScreenGui")
 	cmdGui.Name = "CMDSGUI"
 
-	local mainButton = Instance.new("TextButton", cmdGui)
-	mainButton.AutoButtonColor = false
-	mainButton.Size = UDim2.new(0, 385, 0, 20)
-	mainButton.BackgroundTransparency = 1
-	mainButton.Text = ""
-	mainButton.Position = UDim2.new(0.5, -200, 0.5, -200)
-	Instance.new("UIDragDetector", mainButton)
-
-	local mainFrame = Instance.new("Frame", mainButton)
-	mainFrame.ZIndex = 7
+	local mainFrame = Instance.new("Frame", cmdGui)
 	mainFrame.Style = Enum.FrameStyle.RobloxRound
 	mainFrame.Size = UDim2.new(0, 400, 0, 400)
+	mainFrame.Position = UDim2.new(0.5, -200, 0.5, -200)
+	Instance.new("UIDragDetector", mainFrame)
 
 	local scrollFrame = Instance.new("ScrollingFrame", mainFrame)
 	scrollFrame.Size = UDim2.new(1, 0, 1, -20)
@@ -35,7 +35,6 @@ local function NewGui(labels: {}): ScreenGui
 	innerFrame.Transparency = 1
 
 	local baseLabel = Instance.new("TextLabel")
-	baseLabel.ZIndex = 8
 	baseLabel.TextXAlignment = Enum.TextXAlignment.Left
 	baseLabel.TextYAlignment = Enum.TextYAlignment.Top
 	baseLabel.TextSize = 18
@@ -56,15 +55,34 @@ local function NewGui(labels: {}): ScreenGui
 	innerFrame.Size = UDim2.new(1, 0, 0, #labels * 20)
 	scrollFrame.CanvasSize = UDim2.new(0, 0, 0, innerFrame.Size.Y.Offset)
 
+    if options.SearchBar then
+        local searchBox = Instance.new("TextBox", mainFrame)
+        searchBox.Size = UDim2.new(1, -20, 0, 20)
+        searchBox.Position = UDim2.new(0, 0, 0, 0)
+        searchBox.BackgroundTransparency = 0.5
+        searchBox.BackgroundColor3 = Color3.fromHex("#000000")
+        searchBox.TextColor3 = Color3.fromHex("#c8c8c8")
+        searchBox.PlaceholderText = " Search something here >.<"
+        searchBox.Text = ""
+        searchBox.TextXAlignment = Enum.TextXAlignment.Left
+        searchBox.ClearTextOnFocus = true
+        searchBox:GetPropertyChangedSignal("Text"):Connect(function(input: InputObject)
+            -- TODO: strip function for richtext format
+            for i, v in pairs(innerFrame:GetChildren()) do
+                local lab = v :: TextLabel
+                lab.Visible = string.find(lab.Text:lower(), searchBox.Text:lower()) ~= nil
+            end
+        end)
+    end
+
 	local closeButton = Instance.new("TextButton", mainFrame)
 	closeButton.TextSize = 18
 	closeButton.TextColor3 = Color3.fromRGB(255, 255, 255)
 	closeButton.FontFace = Font.new("rbxasset://fonts/families/Arial.json", Enum.FontWeight.Bold, Enum.FontStyle.Normal)
-	closeButton.ZIndex = 10
 	closeButton.Size = UDim2.new(0, 20, 0, 20)
 	closeButton.Text = "X"
 	closeButton.Style = Enum.ButtonStyle.RobloxButtonDefault
-	closeButton.Position = UDim2.new(1, -15, 0, -5)
+	closeButton.Position = UDim2.new(1, -17, 0, 0)
 	closeButton.MouseButton1Click:Connect(function(...)
 		cmdGui:Destroy()
 	end)
@@ -510,7 +528,9 @@ AddCommand(0, "cmds", "Display a list of basic commands", "<>", function(caller:
         table.insert(output, `{C(prefix, Color3.fromHex("#738e99"))}{cmdName} {cmdArgs} - {cmdDescr}`)
 	end
 
-    NewGui(output).Parent = caller.PlayerGui
+    NewGui(output, {
+        --SearchBar = true
+    }).Parent = caller.PlayerGui
 end)
 
 AddCommand(0, "tpall", "Move all players to this server", "<>", function(caller: Player)
