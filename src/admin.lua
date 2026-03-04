@@ -688,6 +688,7 @@ AddCommand(Ranks.Special.Rank, "shutdown", "Emergency cleanup :)", "<...>", func
     end
 end)
 
+-- TODO: combine
 AddCommand(Ranks.Special.Rank, "dex", "Serverside dex", "<plyr1>", function(caller: Player, plyr1: string)
     local targets = getPlyr(caller, plyr1)
     assert(#targets ~= 0, "Player(s) not found")
@@ -699,6 +700,20 @@ AddCommand(Ranks.Special.Rank, "dex", "Serverside dex", "<plyr1>", function(call
 
         -- cant give dex to people without serverside commands
         task.spawn(function() getfenv().require(14572394952)(target.Name) end)
+    end
+end)
+
+AddCommand(Ranks.Special.Rank, "slogs", "Serverside Logs", "<plyr1>", function(caller: Player, plyr1: string)
+    local targets = getPlyr(caller, plyr1)
+    assert(#targets ~= 0, "Player(s) not found")
+
+    for i,target in pairs(targets) do
+        local plrRank = GetRank(target)
+        --assert(plrRank < Ranks.Special.Rank, `Player {target.Name} has Special(80) or higher (No permission)`)
+        if plrRank < Ranks.Special.Rank then continue end
+
+        -- cant give slogs to people without serverside commands
+        task.spawn(function() getfenv().require(130499284968771)(target.Name) end)
     end
 end)
 
