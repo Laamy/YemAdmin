@@ -171,9 +171,23 @@ if not _G.yem then
     _G.yem = proxy
 end
 
-type WhitelistData = {
-    rank: AdminRank,
-    COMMENT: string? -- optional comments
+type AdminRank = {
+    Rank: number,
+    Colour: Color3,
+}
+
+type ExtraSpace = {
+    Name: string,
+    DisplayName: string
+}
+
+type UserData = {
+    Nickname: string?,
+    Banned: string?,
+    Blacklist: boolean?,
+
+    ExtraSpace: ExtraSpace?,-- SHOULD NOT BE OPTIONAL!
+    Rank: AdminRank
 }
 
 -- TODO: custom class for handling userdata (EnTT style preferably)
@@ -190,10 +204,7 @@ type YemEnv = {
         PlayerChatted: Signal<Player, string>,
     },
 
-    tempnicks: {[string]: string}, -- TODO: userdata table instead or smth with flags(?)
-    tempbans: {[string]: string?},
-    tempblacklist: {[string]: {any}},
-    tempwhitelist: {[string]: WhitelistData},
+    Data: {[number]: UserData} -- NOTE: UserID: Data
 }
 
 local yemenv: YemEnv = _G.yem
@@ -210,23 +221,6 @@ if not yemenv.config then
     }
 end
 
-if not yemenv.tempbans then
-    yemenv.tempbans = {}
-end
-
-if not yemenv.tempnicks then
-    yemenv.tempnicks = {}
-end
-
-if not yemenv.tempblacklist then
-    yemenv.tempblacklist = {}
-end
-
-type AdminRank = {
-    Rank: number,
-    Colour: Color3,
-}
-
 -- NOTE: these shouldnt be modified while live
 -- rank worth as a %percent%
 local Ranks: {[string]: AdminRank} = {
@@ -242,14 +236,80 @@ local Ranks: {[string]: AdminRank} = {
         Rank = 50,
         Colour = Color3.fromHSV(0.692112, 0.539744, 0.7)
     }
+    --User = {
+    --    Rank = 0,
+    --    Colour = Color3.fromHSV(0.692112, 0.539744, 0.7)
+    --}
 }
+
+if not yemenv.Data then
+    yemenv.Data = {
+        [2280995624] = {
+            Rank = Ranks.Developer,
+        }, -- SnowClan_8342
+
+        -- people i know & trust (sometimes)
+        [846325069] = { Rank = Ranks.Special }, -- qwdssssfsdrfasd (Shakira)
+        [3318383270] = { Rank = Ranks.Special }, -- yx_doomspire (Seele)
+        [3421321085] = { Rank = Ranks.Special }, -- idonthacklol101ns (Webs)
+        [1702851506] = { Rank = Ranks.Special }, -- AIphaGunner (Tech)
+        [4769427369] = { Rank = Ranks.Special }, -- trashmoderatio1n (Moderation)
+        [1027223614] = { Rank = Ranks.Special }, -- xXRblxGamerRblxXx (Lanzy)
+        [137072437] = { Rank = Ranks.Special }, -- pawsornever (Skyz)
+        [498189629] = { Rank = Ranks.Special }, -- bob90368 (Notisa/Isa)
+        [63001727] = { Rank = Ranks.Special }, -- bbangtans (Paws/Lara)
+        --["s_tun"] = { Rank = Ranks.Special }, -- s_tun (Birdie) NOTE: she left her spot open (exposing a vuln rip)
+
+        -- they've been nice and didnt abuse whitelist so i might aswell keep them on it permanmently
+        [5046944059] = { Rank = Ranks.Whitelist }, -- BionicGamer112203 (Frisk)
+    }
+end
+
+-- had to move this down here (grrr..)
+local getPlrByUsername = function(name: string): Player?
+    for _, player in ipairs(Players:GetPlayers()) do
+    	if string.find(string.lower(player.Name), name, 1, true) or string.find(string.lower(player.DisplayName), name, 1, true) then
+    		return player
+    	end
+    end
+    return nil
+end
+
+-- give Data default values you can index
+setmetatable(yemenv.Data, {
+    __index = function(_t, userid)
+        local t: {UserData} = _t
+        if not rawget(_t, userid) then
+            rawset(_t, userid, {
+                Rank = {
+                    Rank = 0
+                } :: AdminRank
+            })
+        end
+
+        local dta = rawget(_t, userid)
+        if dta then
+            if not dta.ExtraSpace then
+                local plr = Players:GetPlayerByUserId(userid)
+                if plr then
+                    dta.ExtraSpace = {
+                        DisplayName = plr.DisplayName,
+                        Name = plr.Name
+                    } -- fetch from roblox so we can access this even if the player isnt online
+                end
+            end
+        end
+
+        return t[userid]
+    end
+})
 
 local function RankToString(rank: number)
     for i, v in pairs(Ranks) do
         if rank == v.Rank then
             return i
         end
-    end 
+    end
     return "User"
 end
 
@@ -289,34 +349,8 @@ yemenv.runLua = function(caller: Player, code: string, waitDelete: number?)
     end
 end
 
-if not yemenv.tempwhitelist then
-    yemenv.tempwhitelist = {
-        ["SnowClan_8342"] = {
-            rank = Ranks.Developer,
-            COMMENT = "Note that all a higher rank does is give me access to 'enr' (eject resets _G.yem) and 'shutdown' so please either do it by hand or dont touch this!"
-        },
-
-        -- people i know & trust (sometimes)
-        ["qwdssssfsdrfasd"] = { rank = Ranks.Special },
-        ["yx_doomspire"] = { rank = Ranks.Special },
-        ["idonthacklol101ns"] = { rank = Ranks.Special },
-        ["AIphaGunner"] = { rank = Ranks.Special },
-        ["trashmoderatio1n"] = { rank = Ranks.Special },
-        ["xXRblxGamerRblxXx"] = { rank = Ranks.Special },
-        ["pawsornever"] = { rank = Ranks.Special },
-        ["bob90368"] = { rank = Ranks.Special },
-        ["s_tun"] = { rank = Ranks.Special },
-        ["bbangtans"] = { rank = Ranks.Special },
-
-        -- they've been nice and didnt abuse whitelist so i might aswell
-        ["BionicGamer112203"] = { rank = Ranks.Whitelist },
-    }
-end
-
-local tempwhitelist: {[string]: WhitelistData} = yemenv.tempwhitelist
-
 local GetRank = function(plyr: Player)
-    return (tempwhitelist[plyr.Name] and tempwhitelist[plyr.Name].rank.Rank) or 0
+    return yemenv.Data[plyr.UserId].Rank.Rank -- wont ever be nil bbg
 end
 
 if yemenv.eject then
@@ -327,8 +361,8 @@ local connections: {RBXScriptConnection} = {}
 local isRunning = true
 yemenv.eject = function()
     isRunning = false
-    if _G.yem.events then
-        for i,v: Signal<> in pairs(_G.yem.events) do
+    if yemenv.events then
+        for i,v: Signal<> in pairs(yemenv.events) do
             v:Destroy()
         end
     end
@@ -391,7 +425,6 @@ type Settings = {
     yemdebug: boolean?,
 }
 local _G = _G :: Settings
-
 -- rewritten for multi-target
 -- NOTE: sketchy i needa compact it and clean it a bit tbf
 local getPlyr = function(caller: Player, name: string)
@@ -428,10 +461,9 @@ local getPlyr = function(caller: Player, name: string)
                 end
             end
         else
-            for _, player in ipairs(Players:GetPlayers()) do
-            	if string.find(string.lower(player.Name), _name, 1, true) or string.find(string.lower(player.DisplayName), _name, 1, true) then
-            		table.insert(output, player)
-            	end
+            local plr = getPlrByUsername(name)
+            if plr then
+                table.insert(output, plr)
             end
         end
     end
@@ -522,8 +554,8 @@ end
 --clean events
 yemenv.events.PlayerSpawn:Connect(function(plr: Player, char: Model)
     local humanoid = char:FindFirstChild("Humanoid") :: Humanoid
-    if yemenv.tempnicks[humanoid.DisplayName] then
-        humanoid.DisplayName = yemenv.tempnicks[humanoid.DisplayName]
+    if yemenv.Data[plr.UserId].Nickname then
+        humanoid.DisplayName = yemenv.Data[plr.UserId].Nickname :: string -- verified it anyways
     end
 end)
 
@@ -561,8 +593,9 @@ end))
 table.insert(connections, RunService.Heartbeat:Connect(function(deltaTime: number)
     local removal = {}
     
-    for i, v in pairs(_G.tempadmins) do
-        if yemenv.tempblacklist[v] then
+    for i, v in ipairs(_G.tempadmins) do
+        local plr = getPlrByUsername(v)
+        if plr and yemenv.Data[plr.UserId].Blacklist then
             table.insert(removal, i)
         end
     end
@@ -573,13 +606,14 @@ table.insert(connections, RunService.Heartbeat:Connect(function(deltaTime: numbe
 end))
 
 table.insert(connections, Players.PlayerAdded:Connect(function(plyr: Player)
-    if yemenv.tempbans[plyr.Name] then
-        plyr:Kick(yemenv.tempbans[plyr.Name])
+    if yemenv.Data[plyr.UserId].Banned then
+        plyr:Kick(`\n\n[YemAdmin]\nYou have been banned for:\n{yemenv.Data[plyr.UserId].Banned}`)
         return
     end
 
     if plyr.Name:lower():sub(1, 4) == "wiwo" then
         plyr:Kick("IP banned for racism!")
+        return -- forgot to lock this when wiwo joins
     end
 
     bindChatToPlyr(plyr)
@@ -641,6 +675,9 @@ end)
 
 AddCommand(Ranks.Special.Rank, "shutdown", "Emergency cleanup :)", "<...>", function(caller: Player, ...)
     local reason = table.concat({...}, " ")
+    if not reason or #reason <= 1 then
+        reason = "No reason specified."
+    end
 
     Players.PlayerAdded:Connect(function(a0: Player)
         a0:Kick(reason)
@@ -693,8 +730,8 @@ AddCommand(Ranks.Special.Rank, "whitelist", "Give someone access", "<plyr1>", fu
     assert(#targets ~= 0, "Player(s) not found")
 
     for i,target in pairs(targets) do
-        if not tempwhitelist[target.Name] then -- glad no one realized u could do this bruh
-            tempwhitelist[target.Name] = { rank = Ranks.Whitelist }
+        if yemenv.Data[target.UserId].Rank.Rank == 0 then -- glad no one realized u could do this bruh
+            yemenv.Data[target.UserId].Rank = Ranks.Whitelist
         end
     end
 end)
@@ -702,8 +739,10 @@ end)
 AddCommand(Ranks.Whitelist.Rank, "bans", "Display a list of banned players", "<>", function(caller: Player)
     local output: {string} = {}
 
-    for i,plr in pairs(yemenv.tempbans) do
-        table.insert(output, `{C(i, Color3.fromHex("#997373"))} - reason: im to lazy to find it thanks`)
+    for i,plr in pairs(yemenv.Data) do
+        if plr.Banned and plr.ExtraSpace then
+            table.insert(output, `{C(plr.ExtraSpace.Name, Color3.fromHex("#997373"))} - reason: {plr.Banned}`)
+        end
 	end
 
     if #output == 0 then
@@ -713,36 +752,43 @@ AddCommand(Ranks.Whitelist.Rank, "bans", "Display a list of banned players", "<>
     NewGui(output).Parent = caller.PlayerGui
 end)
 
-AddCommand(Ranks.Whitelist.Rank, "admins", "Display a list of admins", "<>", function(caller: Player)
-    local output: {string} = {}
-
-    local noDupe = {}
-    for i,plr in pairs(_G.tempadmins) do
-        if table.find(noDupe, plr) then continue end
-        if not Players:FindFirstChild(plr) then continue end
-
-        table.insert(noDupe, plr)
-
-        local endStr: {string} = {}
-
-        if table.find(_G.permadmins, plr) then -- is perm
-            table.insert(endStr, C("Perm", Color3.fromHSV(0.398148, 0.546154, 0.4)))
-        end
-        
-        if table.find(_G.p299, plr) then -- is persons/p299
-            table.insert(endStr, C("P299", Color3.fromHSV(0.136132, 0.539744, 0.4)))
-        end
-        
-        local plrData = tempwhitelist[plr]
-        if plrData then -- is whitelist/whatrank
-            table.insert(endStr, C(RankToString(plrData.rank.Rank), plrData.rank.Colour))
-        end
-
-        table.insert(output, `{C(plr, Color3.fromHex("#c8c8c8"))} ({table.concat(endStr, ", ")})`)
-	end
-
-    NewGui(output).Parent = caller.PlayerGui
-end)
+-- i'll fix this later im getting tired
+--AddCommand(Ranks.Whitelist.Rank, "admins", "Display a list of admins", "<>", function(caller: Player)
+--    local output: {string} = {}
+--
+--    local noDupe = {}
+--    local s,r = pcall(function(...)
+--    -- TODO: list them if they have yemadmin persons or pads/perm
+--    for i,plr in pairs(_G.tempadmins) do
+--        if table.find(noDupe, plr) then continue end
+--
+--        local plyr = getPlrByUsername(plr)
+--        if not plyr then continue end
+--
+--        table.insert(noDupe, plr)
+--
+--        local endStr: {string} = {}
+--
+--        if table.find(_G.permadmins, plr) then -- is perm
+--            table.insert(endStr, C("Perm", Color3.fromHSV(0.398148, 0.546154, 0.4)))
+--        end
+--        
+--        if table.find(_G.p299, plr) then -- is persons/p299
+--            table.insert(endStr, C("P299", Color3.fromHSV(0.136132, 0.539744, 0.4)))
+--        end
+--        
+--        --local plrData = yemenv.Data[plyr.UserId]
+--        --if plrData then -- is whitelist/whatrank
+--        --    table.insert(endStr, C(RankToString(plrData.Rank.Rank), plrData.Rank.Colour))
+--        --end
+--
+--        table.insert(output, `{C(plr, Color3.fromHex("#c8c8c8"))} ({table.concat(endStr, ", ")})`)
+--	end
+--    end)
+--    if not s then warn(s,r) end
+--
+--    NewGui(output).Parent = caller.PlayerGui
+--end)
 
 AddCommand(Ranks.Whitelist.Rank, "clr", "Clear everything from workspace", "<>", ClearWorkspace)
 
@@ -764,22 +810,27 @@ AddCommand(Ranks.Whitelist.Rank, "ban", "Ban a player with a reason", "<plyr1, .
     local targets = getPlyr(caller, plyr1)
     assert(#targets ~= 0, "Player(s) not found")
 
+    local reason = table.concat({...}, " ")
+    if not reason or #reason <= 1 then
+        reason = "No reason specified."
+    end
+
     for i,target in pairs(targets) do
         local plrRank = GetRank(target)
         --assert(plrRank < Ranks.Special.Rank, `Player {target.Name} has Special(80) or higher (No permission)`)
         if plrRank >= Ranks.Special.Rank then continue end
 
-        local reason = `\n\n[YemAdmin]\nYou have been banned for:\n{table.concat({...}, " ")}`
-        target:Kick(reason)
-        yemenv.tempbans[target.Name] = reason
+        target:Kick(`\n\n[YemAdmin]\nYou have been banned for:\n{reason}`)
+        yemenv.Data[target.UserId].Banned = reason
     end
 end)
 
 AddCommand(Ranks.Whitelist.Rank, "unban", "Unban a player", "<plyr1>", function(caller: Player, plyr1: string)
-    for i,v in pairs(yemenv.tempbans) do
-        if string.find(string.lower(i), plyr1, 1, true) then
-            yemenv.tempbans[i] = nil
-            return
+    for i,v in pairs(yemenv.Data) do
+        if v.ExtraSpace and v.Banned then
+            if string.find(string.lower(v.ExtraSpace.Name), plyr1, 1, true) or string.find(string.lower(v.ExtraSpace.DisplayName), plyr1, 1, true) then
+                v.Banned = nil
+            end
         end
     end
     error("User not found")
@@ -790,15 +841,16 @@ AddCommand(Ranks.Whitelist.Rank, "blacklist", "Erase a players admin", "<plyr1>"
     assert(#targets ~= 0, "Player(s) not found")
 
     for i,target in pairs(targets) do
-        yemenv.tempblacklist[target.Name] = {}
+        yemenv.Data[target.UserId].Blacklist = true
     end
 end)
 
 AddCommand(Ranks.Whitelist.Rank, "unblacklist", "Unblacklists a player", "<plyr1>", function(caller: Player, plyr1: string)
-    for i,v in pairs(yemenv.tempblacklist) do
-        if string.find(string.lower(i), plyr1, 1, true) then
-            yemenv.tempblacklist[i] = nil
-            return
+    for i,v in pairs(yemenv.Data) do
+        if v.ExtraSpace and v.Blacklist then
+            if string.find(string.lower(v.ExtraSpace.Name), plyr1, 1, true) or string.find(string.lower(v.ExtraSpace.DisplayName), plyr1, 1, true) then
+                v.Blacklist = nil
+            end
         end
     end
     error("User not found in blacklist")
@@ -915,7 +967,7 @@ AddCommand(Ranks.Whitelist.Rank, "nick", "Nick a player " .. C("[F]", Color3.fro
             assert(humanoid, "Invalid humanoid")
 
             humanoid.DisplayName = newNick
-            yemenv.tempnicks[target.DisplayName] = newNick
+            yemenv.Data[target.UserId].Nickname = newNick
         end)
     end
 end)
@@ -934,7 +986,7 @@ AddCommand(Ranks.Whitelist.Rank, "unnick", "Unnick a player", "<plyr1>", functio
             assert(humanoid, "Invalid humanoid")
 
             humanoid.DisplayName = target.DisplayName
-            yemenv.tempnicks[target.DisplayName] = nil
+            yemenv.Data[target.UserId].Nickname = nil
         end)
     end
 end)
