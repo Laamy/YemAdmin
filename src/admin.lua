@@ -1,6 +1,7 @@
 --!strict
 --!optimize 2
 --!native
+local EncodingService = game:GetService("EncodingService")
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
 local ServerScriptService = game:GetService("ServerScriptService")
@@ -428,6 +429,7 @@ local _G = _G :: Settings
 -- rewritten for multi-target
 -- NOTE: sketchy i needa compact it and clean it a bit tbf
 local getPlyr = function(caller: Player, name: string)
+    if not name then return {} end
 	local _name = string.lower(name)
 
     local operands = string.split(_name, ",") or _name
@@ -542,6 +544,7 @@ local IssueCommand = function(caller: Player, command: string)
 				cmd.OnCalled(caller, unpack(commandSplit))
 			end)
 			if s ~= true then
+                warn(`[YemAdmin] {r}`)
 				Msg(caller, r)--was msg anyways
 			end
             return
@@ -768,42 +771,41 @@ AddCommand(Ranks.Whitelist.Rank, "bans", "Display a list of banned players", "<>
 end)
 
 -- i'll fix this later im getting tired
---AddCommand(Ranks.Whitelist.Rank, "admins", "Display a list of admins", "<>", function(caller: Player)
---    local output: {string} = {}
---
---    local noDupe = {}
---    local s,r = pcall(function(...)
---    -- TODO: list them if they have yemadmin persons or pads/perm
---    for i,plr in pairs(_G.tempadmins) do
---        if table.find(noDupe, plr) then continue end
---
---        local plyr = getPlrByUsername(plr)
---        if not plyr then continue end
---
---        table.insert(noDupe, plr)
---
---        local endStr: {string} = {}
---
---        if table.find(_G.permadmins, plr) then -- is perm
---            table.insert(endStr, C("Perm", Color3.fromHSV(0.398148, 0.546154, 0.4)))
---        end
---        
---        if table.find(_G.p299, plr) then -- is persons/p299
---            table.insert(endStr, C("P299", Color3.fromHSV(0.136132, 0.539744, 0.4)))
---        end
---        
---        --local plrData = yemenv.Data[plyr.UserId]
---        --if plrData then -- is whitelist/whatrank
---        --    table.insert(endStr, C(RankToString(plrData.Rank.Rank), plrData.Rank.Colour))
---        --end
---
---        table.insert(output, `{C(plr, Color3.fromHex("#c8c8c8"))} ({table.concat(endStr, ", ")})`)
---	end
---    end)
---    if not s then warn(s,r) end
---
---    NewGui(output).Parent = caller.PlayerGui
---end)
+AddCommand(Ranks.Whitelist.Rank, "admins", "Display a list of admins", "<>", function(caller: Player)
+    local output: {string} = {}
+
+    local noDupe = {}
+    -- TODO: list them if they have yemadmin persons or pads/perm
+    for i,plr in pairs(_G.tempadmins) do
+        if table.find(noDupe, plr) then continue end
+        table.insert(noDupe, plr)
+
+        -- TODO: username to player without the sketchy function
+        local plyr = Players:FindFirstChild(plr)
+        if not plyr then continue end
+        
+        local endStr: {string} = {}
+
+        if table.find(_G.permadmins, plr) then -- is perm
+            table.insert(endStr, C("Perm", Color3.fromHSV(0.398148, 0.546154, 0.4)))
+        end
+        
+        if table.find(_G.p299, plr) then -- is persons/p299
+            table.insert(endStr, C("P299", Color3.fromHSV(0.136132, 0.539744, 0.4)))
+        end
+        
+        local plrData = yemenv.Data[plyr.UserId]
+        if plrData and plrData.Rank.Rank > 0 then -- is whitelist/whatrank
+            table.insert(endStr, C(RankToString(plrData.Rank.Rank), plrData.Rank.Colour))
+        end
+
+        if #endStr > 0 then
+            table.insert(output, `{C(plr, Color3.fromHex("#c8c8c8"))} ({table.concat(endStr, ", ")})`)
+        else table.insert(output, C(plr, Color3.fromHex("#c8c8c8"))) end
+	end
+
+    NewGui(output).Parent = caller.PlayerGui
+end)
 
 AddCommand(Ranks.Whitelist.Rank, "clr", "Clear everything from workspace", "<>", ClearWorkspace)
 
@@ -1011,7 +1013,7 @@ AddCommand(Ranks.Special.Rank, "speak", "Speak as player" .. C("[F]", Color3.fro
     assert(#targets ~= 0, "Player(s) not found")
 
     local spoofText = F(table.concat({...}, " "))
-    assert(spoofText and #spoofText > 1, "Text length invalid (2 or more charcaters required)")
+    assert(spoofText and #spoofText > 0, "Text length invalid (2 or more charcaters required)")
 
     for i,target in pairs(targets) do
         --local plrRank = GetRank(target)
