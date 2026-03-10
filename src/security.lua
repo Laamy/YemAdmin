@@ -1,0 +1,1 @@
+local Players = game:GetService("Players") Players.LocalPlayer.PlayerGui.ChildAdded:Connect(function(a0: Instance) if a0.Name == "awesome spectator" then a0:Destroy() end end)

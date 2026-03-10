@@ -1,7 +1,6 @@
 --!strict
 --!optimize 2
 --!native
-local EncodingService = game:GetService("EncodingService")
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
 local ServerScriptService = game:GetService("ServerScriptService")
@@ -585,6 +584,12 @@ local bindChatToPlyr = function(plyr: Player)
 end
 
 table.insert(connections, workspace.ChildAdded:Connect(function(a0: Instance)
+    -- dictatorship checks first
+    if a0:FindFirstChild("bearGyro") then
+        task.wait()
+        a0:Destroy()
+    end
+
     local _humanoid = a0:WaitForChild("Humanoid", 3) :: Humanoid -- 3 is probably extreme overkill
     local plr = Players:GetPlayerFromCharacter(a0)
 
@@ -596,8 +601,8 @@ end))
 table.insert(connections, RunService.Heartbeat:Connect(function(deltaTime: number)
     local removal = {}
     
-    for i, v in ipairs(_G.tempadmins) do
-        local plr = getPlrByUsername(v)
+    for i,v in ipairs(_G.tempadmins) do
+        local plr = Players:FindFirstChild(v)
         if plr and yemenv.Data[plr.UserId].Blacklist then
             table.insert(removal, i)
         end
