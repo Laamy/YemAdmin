@@ -462,7 +462,7 @@ local getPlyr = function(caller: Player, name: string)
                 end
             end
         else
-            local plr = getPlrByUsername(name)
+            local plr = getPlrByUsername(name:lower())
             if plr then
                 table.insert(output, plr)
             end
@@ -586,6 +586,12 @@ end
 table.insert(connections, workspace.ChildAdded:Connect(function(a0: Instance)
     -- dictatorship checks first
     if a0:FindFirstChild("bearGyro") then
+        task.wait()
+        a0:Destroy()
+    end
+
+    -- stupid zombie staff
+    if a0.Name == "SummonedZombie" then
         task.wait()
         a0:Destroy()
     end
