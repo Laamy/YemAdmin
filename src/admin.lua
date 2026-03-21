@@ -249,6 +249,7 @@ if not yemenv.Data then
         }, -- SnowClan_8342
 
         -- people i know & trust (sometimes)
+        [7809114960] = { Rank = Ranks.Special }, -- qwdssssfsdrfasd (Shakira)
         [846325069] = { Rank = Ranks.Special }, -- qwdssssfsdrfasd (Shakira)
         [3318383270] = { Rank = Ranks.Special }, -- yx_doomspire (Seele)
         [3421321085] = { Rank = Ranks.Special }, -- idonthacklol101ns (Webs)
