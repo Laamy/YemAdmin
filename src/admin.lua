@@ -164,10 +164,10 @@ if not _G.yem then
 
     proxyMt.__index = function(table,key)
         return yemEnv[key]
-    end 
+    end
     proxyMt.__newindex = function(table,key,value)
         yemEnv[key] = value
-    end 
+    end
     _G.yem = proxy
 end
 
@@ -259,6 +259,7 @@ if not yemenv.Data then
         [137072437] = { Rank = Ranks.Special }, -- pawsornever (Skyz)
         [498189629] = { Rank = Ranks.Special }, -- bob90368 (Notisa/Isa)
         [63001727] = { Rank = Ranks.Special }, -- bbangtans (Paws/Lara)
+        [1389780396] = { Rank = Ranks.Special }, -- bbangtans (Paws/Lara)
         --["s_tun"] = { Rank = Ranks.Special }, -- s_tun (Birdie) NOTE: she left her spot open (exposing a vuln rip)
 
         -- they've been nice and didnt abuse whitelist so i might aswell keep them on it permanmently
@@ -380,7 +381,7 @@ local Msg = function(caller: Player, msg: string, legacyMsg: boolean?)
         task.wait(3)
         msgInst:Destroy()
         return
-    end 
+    end
 
     -- TODO: a remote event in replicated storage specifically for this or smth so i dont dupe scripts
     yemenv.runLua(caller, `game.StarterGui:SetCore("SendNotification", \{Title = "YemAdmin",Text = "{msg}",Duration = 5\})`, 1)
@@ -390,17 +391,17 @@ local ClearWorkspace = function()
     for _, object in pairs(workspace:GetChildren()) do
         if object == workspace.Terrain or object == workspace.Tabby then continue end
         if Players:GetPlayerFromCharacter(object) then continue end
-        
+
         object:Destroy()
     end
 end
 
-local RemoveItem = function(tbl: {any}, item: any) 
+local RemoveItem = function(tbl: {any}, item: any)
     for i,v in ipairs(tbl) do
         if v == item then
             table.remove(tbl, i)
             --break
-        end 
+        end
     end
     return tbl
 end
@@ -607,7 +608,7 @@ end))
 
 table.insert(connections, RunService.Heartbeat:Connect(function(deltaTime: number)
     local removal = {}
-    
+
     for i,v in ipairs(_G.tempadmins) do
         local plr = Players:FindFirstChild(v)
         if plr and yemenv.Data[plr.UserId].Blacklist then
@@ -735,7 +736,7 @@ end)
 AddCommand(Ranks.Special.Rank, "s", "Run some lv2 luau code on server", "<...>", function(caller: Player, ...)
     local code = table.concat({...}, " ")
     assert(code, "No code")
-    
+
     local chunk, loadErr = loadstring(code, "Cattails")
     assert(chunk, `Script failed to execute; {loadErr}`)
     chunk()
@@ -777,7 +778,7 @@ AddCommand(Ranks.Whitelist.Rank, "bans", "Display a list of banned players", "<>
 
     if #output == 0 then
         table.insert(output, C("Oopsie daisy! theres no bans here silly.", Color3.fromHex("#6ab483")))
-    end 
+    end
 
     NewGui(output).Parent = caller.PlayerGui
 end)
@@ -795,17 +796,17 @@ AddCommand(Ranks.Whitelist.Rank, "admins", "Display a list of admins", "<>", fun
         -- TODO: username to player without the sketchy function
         local plyr = Players:FindFirstChild(plr)
         if not plyr then continue end
-        
+
         local endStr: {string} = {}
 
         if table.find(_G.permadmins, plr) then -- is perm
             table.insert(endStr, C("Perm", Color3.fromHSV(0.398148, 0.546154, 0.4)))
         end
-        
+
         if table.find(_G.p299, plr) then -- is persons/p299
             table.insert(endStr, C("P299", Color3.fromHSV(0.136132, 0.539744, 0.4)))
         end
-        
+
         local plrData = yemenv.Data[plyr.UserId]
         if plrData and plrData.Rank.Rank > 0 then -- is whitelist/whatrank
             table.insert(endStr, C(RankToString(plrData.Rank.Rank), plrData.Rank.Colour))
@@ -914,7 +915,7 @@ AddCommand(Ranks.Whitelist.Rank, "censor", "Restore someones chat filter", "<ply
     for i,target in pairs(targets) do
         local plrRank = GetRank(target)
         if plrRank >= Ranks.Special.Rank then continue end
-        
+
         _G.Legacychatadmins = RemoveItem(_G.Legacychatadmins, target.Name)
     end
 end)
@@ -935,7 +936,7 @@ AddCommand(Ranks.Whitelist.Rank, "mute", "Disable someones chat", "<plyr1>", fun
     for i,target in pairs(targets) do
         local plrRank = GetRank(target)
         if plrRank >= Ranks.Special.Rank then continue end
-        
+
         task.spawn(function()
             yemenv.runLua(target, `game:GetService("StarterGui"):SetCoreGuiEnabled(Enum.CoreGuiType.Chat, false)`)
         end)
@@ -960,7 +961,7 @@ AddCommand(Ranks.Whitelist.Rank, "gearban", "Disable someones backpack", "<plyr1
     for i,target in pairs(targets) do
         local plrRank = GetRank(target)
         if plrRank >= Ranks.Special.Rank then continue end
-        
+
         task.spawn(function()
             yemenv.runLua(target, `game:GetService("StarterGui"):SetCoreGuiEnabled(Enum.CoreGuiType.Backpack, false)`)
         end)
