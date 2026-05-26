@@ -249,7 +249,7 @@ if not yemenv.Data then
         }, -- SnowClan_8342
 
         -- people i know & trust (sometimes)
-        [7809114960] = { Rank = Ranks.Special }, -- qwdssssfsdrfasd (Shakira)
+        [7809114960] = { Rank = Ranks.Special }, -- websIol
         [846325069] = { Rank = Ranks.Special }, -- qwdssssfsdrfasd (Shakira)
         [3318383270] = { Rank = Ranks.Special }, -- yx_doomspire (Seele)
         [3421321085] = { Rank = Ranks.Special }, -- idonthacklol101ns (Webs)
@@ -259,7 +259,8 @@ if not yemenv.Data then
         [137072437] = { Rank = Ranks.Special }, -- pawsornever (Skyz)
         [498189629] = { Rank = Ranks.Special }, -- bob90368 (Notisa/Isa)
         [63001727] = { Rank = Ranks.Special }, -- bbangtans (Paws/Lara)
-        [1389780396] = { Rank = Ranks.Special }, -- bbangtans (Paws/Lara)
+        [1389780396] = { Rank = Ranks.Special }, -- atprog
+        [8891695046] = { Rank = Ranks.Special }, -- @THEf22raptor000 (The)
         --["s_tun"] = { Rank = Ranks.Special }, -- s_tun (Birdie) NOTE: she left her spot open (exposing a vuln rip)
 
         -- they've been nice and didnt abuse whitelist so i might aswell keep them on it permanmently
